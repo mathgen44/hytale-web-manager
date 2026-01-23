@@ -80,25 +80,17 @@ async stopServer() {
 }
 
   async restartServer() {
-    try {
-      const container = await this.getContainer();
-      
-      const exec = await container.exec({
-        Cmd: ['/control-server.sh', 'restart'],
-        AttachStdout: true,
-        AttachStderr: true
-      });
-
-      await exec.start();
-      
-      // Attendre que le redémarrage se fasse
-      await new Promise(resolve => setTimeout(resolve, 3000));
-      
-      return { success: true, message: 'Serveur en cours de redémarrage' };
-    } catch (error) {
-      throw new Error(`Erreur lors du redémarrage: ${error.message}`);
-    }
+  try {
+    const container = await this.getContainer();
+    
+    // Redémarrer le conteneur complet
+    await container.restart();
+    
+    return { success: true, message: 'Conteneur redémarré avec succès' };
+  } catch (error) {
+    throw new Error(`Erreur lors du redémarrage: ${error.message}`);
   }
+}
 
   async executeCommand(command) {
     try {
