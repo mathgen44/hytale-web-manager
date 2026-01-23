@@ -1,0 +1,41 @@
+# Données du serveur Hytale (ne JAMAIS commit)
+data/
+backup-hytale-data/
+
+# Fichiers de configuration avec données sensibles
+.env
+.env.local
+
+# Node.js
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+package-lock.json
+yarn.lock
+
+# Build
+dist/
+build/
+*.log
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Docker
+*.pid
+.docker/
+
+# Logs
+logs/
+*.log
+
+# Temp
+tmp/
+temp/
+.tmp/
