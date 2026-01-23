@@ -59,17 +59,12 @@ start_server() {
     
     # Arguments du serveur
     SERVER_ARGS=""
-    
-    if [ -n "$SERVER_HOST" ]; then
-        SERVER_ARGS="$SERVER_ARGS --host=$SERVER_HOST"
-    fi
-    
+
+    # Note: --host n'est pas supporté par Hytale Server
+    # Le serveur écoute automatiquement sur 0.0.0.0
+
     if [ -n "$SERVER_PORT" ]; then
-        SERVER_ARGS="$SERVER_ARGS --port=$SERVER_PORT"
-    fi
-    
-    if [ -n "$EXTRA_ARGS" ]; then
-        SERVER_ARGS="$SERVER_ARGS $EXTRA_ARGS"
+    SERVER_ARGS="$SERVER_ARGS --port=$SERVER_PORT"
     fi
     
     # Démarrage du serveur en arrière-plan
