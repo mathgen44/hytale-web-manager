@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   # Serveur Hytale avec wrapper de contrôle
   hytale-server:
