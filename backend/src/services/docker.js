@@ -15,58 +15,31 @@ class DockerService {
   }
 
   async getServerStatus() {
-    try {
-      const container = await this.getContainer();
-      const inspect = await container.inspect();
-      
-      // Vérifier si le conteneur est en cours d'exécution
-      if (!inspect.State.Running) {
-        return {
-          container: 'stopped',
-          server: 'stopped',
-          uptime: 0
-        };
-      }
-
-      // Exécuter la commande de statut dans le conteneur
-      const exec = await container.exec({
-        Cmd: ['/control-server.sh', 'status'],
-        AttachStdout: true,
-        AttachStderr: true
-      });
-
-      const stream = await exec.start();
-      
-      let output = '';
-      stream.on('data', (chunk) => {
-        output += chunk.toString();
-      });
-
-      await new Promise((resolve) => {
-        stream.on('end', resolve);
-      });
-
-      const status = output.trim();
-      
-      if (status.startsWith('running:')) {
-        const pid = status.split(':')[1];
-        return {
-          container: 'running',
-          server: 'running',
-          pid: parseInt(pid),
-          uptime: inspect.State.StartedAt
-        };
-      }
-
+  try {
+    const container = await this.getContainer();
+    const inspect = await container.inspect();
+    
+    // Vérifier si le conteneur est en cours d'exécution
+    if (!inspect.State.Running) {
       return {
-        container: 'running',
+        container: 'stopped',
         server: 'stopped',
         uptime: 0
       };
-    } catch (error) {
-      throw new Error(`Erreur lors de la récupération du statut: ${error.message}`);
     }
+
+    // Sans wrapper : si le conteneur tourne, le serveur tourne
+    // On vérifie juste que le processus Java est actif
+    return {
+      container: 'running',
+      server: 'running',
+      pid: inspect.State.Pid,
+      uptime: inspect.State.StartedAt
+    };
+  } catch (error) {
+    throw new Error(`Erreur lors de la récupération du statut: ${error.message}`);
   }
+}
 
   async getContainerStats() {
     try {
@@ -97,43 +70,14 @@ class DockerService {
   }
 
   async startServer() {
-    try {
-      const container = await this.getContainer();
-      
-      const exec = await container.exec({
-        Cmd: ['/control-server.sh', 'start'],
-        AttachStdout: true,
-        AttachStderr: true
-      });
+  // Sans wrapper, on ne peut pas start/stop le processus individuellement
+  throw new Error('Start non disponible avec l\'image de base. Utilisez docker compose up -d.');
+}
 
-      await exec.start();
-      
-      // Attendre un peu que le serveur démarre
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      
-      return { success: true, message: 'Serveur en cours de démarrage' };
-    } catch (error) {
-      throw new Error(`Erreur lors du démarrage: ${error.message}`);
-    }
-  }
-
-  async stopServer() {
-    try {
-      const container = await this.getContainer();
-      
-      const exec = await container.exec({
-        Cmd: ['/control-server.sh', 'stop'],
-        AttachStdout: true,
-        AttachStderr: true
-      });
-
-      await exec.start();
-      
-      return { success: true, message: 'Serveur en cours d\'arrêt' };
-    } catch (error) {
-      throw new Error(`Erreur lors de l'arrêt: ${error.message}`);
-    }
-  }
+async stopServer() {
+  // Sans wrapper, on ne peut pas start/stop le processus individuellement
+  throw new Error('Stop non disponible avec l\'image de base. Utilisez docker compose down.');
+}
 
   async restartServer() {
     try {
