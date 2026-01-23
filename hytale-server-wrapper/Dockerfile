@@ -1,10 +1,13 @@
 FROM enesbakis/hytale-docker:latest
 
-# Installer les outils nécessaires pour le contrôle du serveur
-RUN apk add --no-cache \
-    bash \
-    procps \
-    coreutils
+# Détecter et installer les outils nécessaires selon la distribution
+RUN if command -v apk >/dev/null 2>&1; then \
+        apk add --no-cache bash procps coreutils; \
+    elif command -v apt-get >/dev/null 2>&1; then \
+        apt-get update && apt-get install -y bash procps coreutils && rm -rf /var/lib/apt/lists/*; \
+    elif command -v yum >/dev/null 2>&1; then \
+        yum install -y bash procps coreutils && yum clean all; \
+    fi
 
 # Copier les scripts de contrôle
 COPY wrapper.sh /wrapper.sh
