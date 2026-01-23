@@ -1,125 +1,222 @@
 import Docker from 'dockerode';
+import dotenv from 'dotenv';
 
-const docker = new Docker({ socketPath: '/var/run/docker.sock' });
-const CONTAINER_NAME = process.env.HYTALE_CONTAINER_NAME || 'hytale-server';
+dotenv.config();
 
 class DockerService {
+  constructor() {
+    this.docker = new Docker();
+    this.containerName = process.env.CONTAINER_NAME || 'hytale-server';
+    this.container = null;
+    this.initialized = false;
+  }
+
+  async init() {
+    if (this.initialized && this.container) {
+      return;
+    }
+
+    try {
+      const containers = await this.docker.listContainers({ all: true });
+      
+      // Chercher le conteneur par nom
+      const found = containers.find(c => 
+        c.Names.some(name => 
+          name.includes('hytale-server') || 
+          name.includes(this.containerName)
+        )
+      );
+      
+      if (found) {
+        this.container = this.docker.getContainer(found.Id);
+        this.initialized = true;
+        console.log('✅ Conteneur Hytale trouvé:', found.Names[0]);
+        console.log('   ID:', found.Id.substring(0, 12));
+        console.log('   État:', found.State);
+      } else {
+        console.warn('⚠️  Conteneur Hytale non trouvé');
+        console.warn('   Conteneurs disponibles:', 
+          containers.map(c => c.Names[0]).join(', ')
+        );
+      }
+    } catch (error) {
+      console.error('❌ Erreur init Docker:', error.message);
+      this.initialized = false;
+    }
+  }
+
   async getContainer() {
-    try {
-      const container = docker.getContainer(CONTAINER_NAME);
-      await container.inspect();
-      return container;
-    } catch (error) {
-      throw new Error(`Conteneur Hytale introuvable: ${error.message}`);
+    if (!this.container || !this.initialized) {
+      await this.init();
     }
+    return this.container;
   }
 
-  async getServerStatus() {
-  try {
-    const container = await this.getContainer();
-    const inspect = await container.inspect();
-    
-    // Vérifier si le conteneur est en cours d'exécution
-    if (!inspect.State.Running) {
-      return {
-        container: 'stopped',
-        server: 'stopped',
-        uptime: 0
-      };
-    }
-
-    // Sans wrapper : si le conteneur tourne, le serveur tourne
-    // On vérifie juste que le processus Java est actif
-    return {
-      container: 'running',
-      server: 'running',
-      pid: inspect.State.Pid,
-      uptime: inspect.State.StartedAt
-    };
-  } catch (error) {
-    throw new Error(`Erreur lors de la récupération du statut: ${error.message}`);
-  }
-}
-
-  async getContainerStats() {
+  async getStatus() {
     try {
       const container = await this.getContainer();
-      const stats = await container.stats({ stream: false });
-      
-      // Calculer l'utilisation CPU
-      const cpuDelta = stats.cpu_stats.cpu_usage.total_usage - stats.precpu_stats.cpu_usage.total_usage;
-      const systemDelta = stats.cpu_stats.system_cpu_usage - stats.precpu_stats.system_cpu_usage;
-      const cpuPercent = (cpuDelta / systemDelta) * stats.cpu_stats.online_cpus * 100;
-      
-      // Calculer l'utilisation mémoire
-      const memUsage = stats.memory_stats.usage;
-      const memLimit = stats.memory_stats.limit;
-      const memPercent = (memUsage / memLimit) * 100;
-      
-      return {
-        cpu: cpuPercent.toFixed(2),
-        memory: {
-          used: (memUsage / 1024 / 1024).toFixed(2), // MB
-          limit: (memLimit / 1024 / 1024).toFixed(2), // MB
-          percent: memPercent.toFixed(2)
-        }
-      };
-    } catch (error) {
-      throw new Error(`Erreur lors de la récupération des stats: ${error.message}`);
-    }
-  }
-
-  async startServer() {
-  // Sans wrapper, on ne peut pas start/stop le processus individuellement
-  throw new Error('Start non disponible avec l\'image de base. Utilisez docker compose up -d.');
-}
-
-async stopServer() {
-  // Sans wrapper, on ne peut pas start/stop le processus individuellement
-  throw new Error('Stop non disponible avec l\'image de base. Utilisez docker compose down.');
-}
-
-  async restartServer() {
-  try {
-    const container = await this.getContainer();
-    
-    // Redémarrer le conteneur complet
-    await container.restart();
-    
-    return { success: true, message: 'Conteneur redémarré avec succès' };
-  } catch (error) {
-    throw new Error(`Erreur lors du redémarrage: ${error.message}`);
-  }
-}
-
-  async executeCommand(command) {
-    try {
-      const container = await this.getContainer();
-      
-      // Vérifier que le serveur est en cours d'exécution
-      const status = await this.getServerStatus();
-      if (status.server !== 'running') {
-        throw new Error('Le serveur n\'est pas en cours d\'exécution');
+      if (!container) {
+        return { 
+          container: 'not_found', 
+          server: 'unknown', 
+          uptime: 0,
+          pid: 0
+        };
       }
 
+      const info = await container.inspect();
+      const containerRunning = info.State.Running;
+
+      if (!containerRunning) {
+        return { 
+          container: 'stopped', 
+          server: 'stopped', 
+          uptime: 0,
+          pid: 0
+        };
+      }
+
+      // Vérifier le statut du serveur via le script de contrôle
+      try {
+        const statusOutput = await this.executeCommand('status', false);
+        const statusLine = statusOutput.trim();
+        
+        // Format attendu: "running:PID" ou "stopped:0"
+        const [serverStatus, pidStr] = statusLine.split(':');
+        const serverRunning = serverStatus === 'running';
+        const pid = parseInt(pidStr) || 0;
+
+        // Calculer l'uptime
+        let uptime = 0;
+        if (containerRunning && serverRunning) {
+          const startTime = new Date(info.State.StartedAt);
+          uptime = Math.floor((Date.now() - startTime.getTime()) / 1000);
+        }
+
+        return {
+          container: containerRunning ? 'running' : 'stopped',
+          server: serverRunning ? 'running' : 'stopped',
+          uptime,
+          pid
+        };
+      } catch (execError) {
+        console.error('❌ Erreur lors de la vérification du statut du serveur:', execError.message);
+        
+        // En cas d'erreur, retourner un statut par défaut
+        return {
+          container: containerRunning ? 'running' : 'stopped',
+          server: 'unknown',
+          uptime: 0,
+          pid: 0
+        };
+      }
+    } catch (error) {
+      console.error('❌ Erreur getStatus:', error.message);
+      return { 
+        container: 'error', 
+        server: 'error', 
+        uptime: 0,
+        pid: 0
+      };
+    }
+  }
+
+  async executeCommand(command, isGameCommand = true) {
+    try {
+      const container = await this.getContainer();
+      if (!container) {
+        throw new Error('Conteneur non trouvé');
+      }
+
+      // Vérifier que le conteneur est en cours d'exécution
+      const info = await container.inspect();
+      if (!info.State.Running) {
+        throw new Error('Le conteneur n\'est pas en cours d\'exécution');
+      }
+
+      // Construction de la commande
+      let cmd;
+      if (isGameCommand) {
+        // Commande de jeu (à implémenter si nécessaire)
+        cmd = ['sh', '-c', `echo "/command ${command}" >> /tmp/server-commands`];
+      } else {
+        // Commande de contrôle
+        cmd = ['sh', '-c', `/control-server.sh "${command}"`];
+      }
+
+      console.log('🔧 Exécution de la commande:', cmd.join(' '));
+
       const exec = await container.exec({
-        Cmd: ['sh', '-c', `echo "${command}" > /proc/$(cat /tmp/hytale-server.pid)/fd/0`],
+        Cmd: cmd,
         AttachStdout: true,
         AttachStderr: true
       });
 
-      await exec.start();
+      const stream = await exec.start();
       
-      return { success: true, message: `Commande exécutée: ${command}` };
+      return new Promise((resolve, reject) => {
+        let output = '';
+        let error = '';
+        
+        stream.on('data', (chunk) => {
+          const text = chunk.toString('utf8');
+          // Les 8 premiers octets sont des headers Docker, on les ignore
+          const cleanText = text.length > 8 ? text.substring(8) : text;
+          output += cleanText;
+        });
+        
+        stream.on('end', () => {
+          if (error) {
+            reject(new Error(error));
+          } else {
+            resolve(output.trim());
+          }
+        });
+        
+        stream.on('error', (err) => {
+          error = err.message;
+          reject(err);
+        });
+
+        // Timeout de 10 secondes
+        setTimeout(() => {
+          reject(new Error('Timeout lors de l\'exécution de la commande'));
+        }, 10000);
+      });
     } catch (error) {
-      throw new Error(`Erreur lors de l'exécution de la commande: ${error.message}`);
+      console.error('❌ Erreur executeCommand:', error.message);
+      throw error;
     }
+  }
+
+  async startServer() {
+    console.log('🚀 Démarrage du serveur...');
+    const result = await this.executeCommand('start', false);
+    console.log('   Résultat:', result);
+    return result;
+  }
+
+  async stopServer() {
+    console.log('🛑 Arrêt du serveur...');
+    const result = await this.executeCommand('stop', false);
+    console.log('   Résultat:', result);
+    return result;
+  }
+
+  async restartServer() {
+    console.log('🔄 Redémarrage du serveur...');
+    const result = await this.executeCommand('restart', false);
+    console.log('   Résultat:', result);
+    return result;
   }
 
   async getLogs(lines = 100) {
     try {
       const container = await this.getContainer();
-      
+      if (!container) {
+        throw new Error('Conteneur non trouvé');
+      }
+
       const logs = await container.logs({
         stdout: true,
         stderr: true,
@@ -127,30 +224,83 @@ async stopServer() {
         timestamps: true
       });
 
-      return logs.toString('utf-8');
+      return logs.toString('utf8');
     } catch (error) {
-      throw new Error(`Erreur lors de la récupération des logs: ${error.message}`);
+      console.error('❌ Erreur getLogs:', error.message);
+      throw error;
     }
   }
 
   async streamLogs(callback) {
     try {
       const container = await this.getContainer();
-      
+      if (!container) {
+        throw new Error('Conteneur non trouvé');
+      }
+
       const stream = await container.logs({
-        follow: true,
         stdout: true,
         stderr: true,
+        follow: true,
         timestamps: true
       });
 
       stream.on('data', (chunk) => {
-        callback(chunk.toString('utf-8'));
+        const lines = chunk.toString('utf8').split('\n');
+        lines.forEach(line => {
+          if (line.trim()) {
+            callback(line);
+          }
+        });
       });
 
       return stream;
     } catch (error) {
-      throw new Error(`Erreur lors du streaming des logs: ${error.message}`);
+      console.error('❌ Erreur streamLogs:', error.message);
+      throw error;
+    }
+  }
+
+  async getStats() {
+    try {
+      const container = await this.getContainer();
+      if (!container) {
+        throw new Error('Conteneur non trouvé');
+      }
+
+      const stats = await container.stats({ stream: false });
+      
+      // Calcul du CPU
+      const cpuDelta = stats.cpu_stats.cpu_usage.total_usage - 
+                      (stats.precpu_stats.cpu_usage?.total_usage || 0);
+      const systemDelta = stats.cpu_stats.system_cpu_usage - 
+                         (stats.precpu_stats.system_cpu_usage || 0);
+      
+      let cpuPercent = 0;
+      if (systemDelta > 0 && cpuDelta > 0) {
+        cpuPercent = (cpuDelta / systemDelta) * 
+                     (stats.cpu_stats.online_cpus || 1) * 100;
+      }
+
+      // Calcul de la RAM
+      const memUsage = stats.memory_stats.usage || 0;
+      const memLimit = stats.memory_stats.limit || 1;
+      const memPercent = (memUsage / memLimit) * 100;
+
+      return {
+        cpu: cpuPercent.toFixed(2),
+        memory: {
+          used: (memUsage / 1024 / 1024).toFixed(2),
+          limit: (memLimit / 1024 / 1024).toFixed(2),
+          percent: memPercent.toFixed(2)
+        }
+      };
+    } catch (error) {
+      console.error('❌ Erreur getStats:', error.message);
+      return {
+        cpu: 0,
+        memory: { used: 0, limit: 0, percent: 0 }
+      };
     }
   }
 }
