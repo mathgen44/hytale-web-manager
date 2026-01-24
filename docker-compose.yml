@@ -1,9 +1,9 @@
 services:
   # Serveur Hytale avec wrapper de contrôle
   hytale-server:
-   build:
-    context: ./hytale-server-wrapper
-    dockerfile: Dockerfile
+    build:
+      context: ./hytale-server-wrapper
+      dockerfile: Dockerfile
     container_name: hytale-server
     restart: unless-stopped
     stdin_open: true    # ← AJOUTER (pour docker attach)
