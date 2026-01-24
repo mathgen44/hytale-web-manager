@@ -66,7 +66,7 @@ start_server() {
     fi
     
     # Arguments du serveur
-    SERVER_ARGS=""
+    SERVER_ARGS="--assets /data/Assets.zip"
     
     # Démarrage du serveur en arrière-plan
     cd /data
