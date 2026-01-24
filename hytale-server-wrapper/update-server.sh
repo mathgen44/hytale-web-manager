@@ -109,6 +109,26 @@ fi
 log_success "Serveur arrêté"
 
 # ========================================
+# Étape 3.5 : Configurer les tokens OAuth pour le downloader
+# ========================================
+log_info "Configuration des tokens OAuth..."
+
+# Créer un lien symbolique vers les tokens du serveur
+# Le downloader cherche dans ~/.hytale/tokens ou /root/.hytale/tokens
+mkdir -p /root/.hytale
+if [ -d "/server/.hytale/tokens" ] && [ ! -L "/root/.hytale/tokens" ]; then
+    ln -sf /server/.hytale/tokens /root/.hytale/tokens
+    log_success "Tokens partagés avec le downloader"
+fi
+
+# Vérifier que les tokens existent
+if [ -d "/root/.hytale/tokens" ] && [ "$(ls -A /root/.hytale/tokens 2>/dev/null)" ]; then
+    log_success "Tokens OAuth trouvés, pas d'authentification nécessaire"
+else
+    log_warn "Aucun token trouvé, authentification OAuth sera requise"
+fi
+
+# ========================================
 # Étape 4 : Télécharger la mise à jour
 # ========================================
 log_info "⬇️  Téléchargement de la mise à jour..."
