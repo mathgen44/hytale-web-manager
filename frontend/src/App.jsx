@@ -2,10 +2,10 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Play, Square, RotateCw, Users, Terminal, Activity, HardDrive, Cpu, Clock, Download } from 'lucide-react';
 
 const API_URL = '';  // Vide = même domaine
-const WS_URL = `ws://${window.location.host}`;  // Même host que la page
+const WS_URL = import.meta.env.VITE_WS_URL || `ws://${window.location.host}`;
 
 // Fonction pour formater l'uptime en durée lisible
-const formatUptime = (seconds) => {
+  const formatUptime = (seconds) => {
   const days = Math.floor(seconds / 86400);
   const hours = Math.floor((seconds % 86400) / 3600);
   const minutes = Math.floor((seconds % 3600) / 60);
