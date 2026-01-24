@@ -77,19 +77,20 @@ router.get('/logs', async (req, res) => {
 // GET /api/server/version - Obtenir la version du serveur
 router.get('/version', async (req, res) => {
   try {
-    const logs = await dockerService.getLogs(100);
+    const logs = await dockerService.getLogs(200);
     
     // Regex pour extraire la version des logs
-    const versionMatch = logs.match(/Version:\s*([\d\.\-a-z]+)/i);
-    const revisionMatch = logs.match(/Revision:\s*([a-f0-9]+)/i);
+    // Format: "Version: 2026.01.17-4b0f30090, Revision: 4b0f30090ab99c9ce84652006e40c825c555ad98"
+    const versionMatch = logs.match(/Version:\s*([\d]{4}\.[\d]{2}\.[\d]{2}-[a-f0-9]+)/i);
+    const revisionMatch = logs.match(/Revision:\s*([a-f0-9]{8})[a-f0-9]*/i);
     
     const currentVersion = versionMatch ? versionMatch[1] : 'unknown';
-    const currentRevision = revisionMatch ? revisionMatch[1].substring(0, 8) : 'unknown';
+    const currentRevision = revisionMatch ? revisionMatch[1] : 'unknown';
     
     res.json({ 
       current: currentVersion,
       revision: currentRevision,
-      available: null  // TODO: vérifier avec hytale-downloader
+      full: `${currentVersion} (${currentRevision})`
     });
   } catch (error) {
     res.status(500).json({ error: error.message });
