@@ -5,8 +5,9 @@ import {
   AlertCircle, CheckCircle, XCircle, TrendingUp, Zap
 } from 'lucide-react';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000';
-const WS_URL = import.meta.env.VITE_WS_URL || 'ws://localhost:4000';
+// CORRECTION: Utiliser des URLs relatives comme dans l'ancien code
+const API_URL = '';  // URL relative
+const WS_URL = `ws://${window.location.host}`;
 
 // Composant Toast pour les notifications
 const Toast = ({ message, type, onClose }) => {
@@ -64,6 +65,7 @@ const ActionButton = ({ icon: Icon, label, onClick, disabled, variant = 'primary
     success: 'bg-green-600 hover:bg-green-700 text-white',
     danger: 'bg-red-600 hover:bg-red-700 text-white',
     secondary: 'bg-slate-700 hover:bg-slate-600 text-white',
+    purple: 'bg-purple-600 hover:bg-purple-700 text-white',
   };
 
   return (
@@ -101,18 +103,32 @@ function App() {
   const wsRef = useRef(null);
   const commandInputRef = useRef(null);
 
+  // Fonction pour formater l'uptime
+  const formatUptime = (seconds) => {
+    if (!seconds) return 'N/A';
+    const days = Math.floor(seconds / 86400);
+    const hours = Math.floor((seconds % 86400) / 3600);
+    const minutes = Math.floor((seconds % 3600) / 60);
+    const secs = seconds % 60;
+    
+    if (days > 0) return `${days}j ${hours}h ${minutes}m`;
+    else if (hours > 0) return `${hours}h ${minutes}m ${secs}s`;
+    else if (minutes > 0) return `${minutes}m ${secs}s`;
+    else return `${secs}s`;
+  };
+
   // Fonction pour afficher un toast
   const showToast = (message, type = 'success') => {
     setToast({ message, type });
   };
 
-  // WebSocket pour les logs
+  // WebSocket pour les logs - CORRECTION: utiliser WS_URL correct
   useEffect(() => {
     const connectWebSocket = () => {
       const ws = new WebSocket(`${WS_URL}/ws/logs`);
       
       ws.onopen = () => {
-        console.log('WebSocket connecté');
+        console.log('✅ WebSocket connecté');
         showToast('Connexion aux logs établie', 'success');
       };
 
@@ -124,12 +140,11 @@ function App() {
       };
 
       ws.onerror = (error) => {
-        console.error('Erreur WebSocket:', error);
-        showToast('Erreur de connexion WebSocket', 'error');
+        console.error('❌ Erreur WebSocket:', error);
       };
 
       ws.onclose = () => {
-        console.log('WebSocket déconnecté, reconnexion...');
+        console.log('🔄 WebSocket déconnecté, reconnexion...');
         setTimeout(connectWebSocket, 3000);
       };
 
@@ -315,7 +330,7 @@ function App() {
 
       <div className="container mx-auto px-4 py-8 max-w-7xl">
         {/* Header */}
-        <header className="mb-8 flex items-center justify-between">
+        <header className="mb-8 flex items-center justify-between flex-wrap gap-4">
           <div>
             <h1 className="text-5xl font-bold bg-gradient-to-r from-blue-400 to-purple-500 bg-clip-text text-transparent mb-2">
               🎮 Hytale Server Manager
@@ -409,8 +424,7 @@ function App() {
               <StatCard
                 icon={Clock}
                 label="Uptime"
-                value={serverStatus.uptime ? new Date(serverStatus.uptime * 1000).toISOString().substr(11, 8) : 'N/A'}
-                subtitle="HH:MM:SS"
+                value={formatUptime(serverStatus.uptime)}
                 color="green"
               />
             </div>
