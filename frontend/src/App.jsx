@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Play, Square, RotateCw, Users, Terminal, Activity, HardDrive, Cpu, Clock } from 'lucide-react';
+import { Play, Square, RotateCw, Users, Terminal, Activity, HardDrive, Cpu, Clock, Download } from 'lucide-react';
 
 const API_URL = '';  // Vide = même domaine
 const WS_URL = `ws://${window.location.host}`;  // Même host que la page
@@ -29,6 +29,7 @@ function App() {
   const [logs, setLogs] = useState([]);
   const [command, setCommand] = useState('');
   const [commandHistory, setCommandHistory] = useState([]);
+  const [serverVersion, setServerVersion] = useState({ current: 'loading...', revision: '' });
   const [loading, setLoading] = useState({});
   const logsEndRef = useRef(null);
   const wsRef = useRef(null);
@@ -122,6 +123,23 @@ function App() {
         console.error('Erreur récupération joueurs:', error);
       }
     };
+	
+  // Récupération de la version
+  useEffect(() => {
+	const fetchVersion = async () => {
+      try {
+        const res = await fetch(`${API_URL}/api/server/version`);
+        const data = await res.json();
+        setServerVersion(data);
+      } catch (error) {
+        console.error('Erreur récupération version:', error);
+      }
+    };
+
+  if (serverStatus.server === 'running') {
+    fetchVersion();
+  }
+}, [serverStatus.server]);
 
     if (serverStatus.server === 'running') {
       fetchPlayers();
@@ -173,6 +191,24 @@ function App() {
     .catch(error => alert(`Erreur: ${error.message}`));
   };
 
+  const handleUpdate = async () => {
+    if (!window.confirm('Voulez-vous mettre à jour le serveur ? Il sera redémarré.')) {
+      return;
+    }
+  
+    setLoading({ ...loading, update: true });
+    try {
+      const res = await fetch(`${API_URL}/api/server/update`, { method: 'POST' });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      alert('Mise à jour lancée ! Le serveur va redémarrer.');
+    } catch (error) {
+      alert(`Erreur: ${error.message}`);
+    } finally {
+      setLoading({ ...loading, update: false });
+    }
+  };
+  
   const getStatusColor = (status) => {
     if (status === 'running') return 'text-green-500';
     if (status === 'stopped') return 'text-red-500';
@@ -233,6 +269,15 @@ function App() {
                 disabled={loading.restart}
                 className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center gap-2"
               >
+			  
+			  <button
+				onClick={handleUpdate}
+				disabled={loading.update}
+				className="px-4 py-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600 disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center gap-2"
+			  >
+				<Download className="w-4 h-4" />
+				{loading.update ? 'Mise à jour...' : 'Mettre à jour'}
+			   </button>
                 <RotateCw className="w-4 h-4" />
                 {loading.restart ? 'Redémarrage...' : 'Redémarrer'}
               </button>
@@ -268,6 +313,17 @@ function App() {
 				  {serverStatus.uptime ? formatUptime(serverStatus.uptime) : 'N/A'}
 				</p>
               </div>
+			  
+			  <div className="bg-white bg-opacity-50 p-4 rounded-lg">
+				<div className="flex items-center gap-2 mb-2">
+					<Activity className="w-5 h-5 text-orange-600" />
+					<span className="font-semibold text-slate-700">Version</span>
+				</div>
+				<p className="text-lg font-bold text-slate-800">{serverVersion.current}</p>
+				{serverVersion.revision && (
+					<p className="text-xs text-slate-600">Rev: {serverVersion.revision}</p>
+				)}
+				</div>
             </div>
           )}
         </div>

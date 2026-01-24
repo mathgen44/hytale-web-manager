@@ -53,12 +53,44 @@ router.post('/restart', async (req, res) => {
   }
 });
 
+// POST /api/server/update - Mettre à jour le serveur
+router.post('/update', async (req, res) => {
+  try {
+    const result = await dockerService.updateServer();
+    res.json(result);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // GET /api/server/logs - Récupérer les logs
 router.get('/logs', async (req, res) => {
   try {
     const lines = parseInt(req.query.lines) || 100;
     const logs = await dockerService.getLogs(lines);
     res.json({ logs });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// GET /api/server/version - Obtenir la version du serveur
+router.get('/version', async (req, res) => {
+  try {
+    const logs = await dockerService.getLogs(100);
+    
+    // Regex pour extraire la version des logs
+    const versionMatch = logs.match(/Version:\s*([\d\.\-a-z]+)/i);
+    const revisionMatch = logs.match(/Revision:\s*([a-f0-9]+)/i);
+    
+    const currentVersion = versionMatch ? versionMatch[1] : 'unknown';
+    const currentRevision = revisionMatch ? revisionMatch[1].substring(0, 8) : 'unknown';
+    
+    res.json({ 
+      current: currentVersion,
+      revision: currentRevision,
+      available: null  // TODO: vérifier avec hytale-downloader
+    });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }

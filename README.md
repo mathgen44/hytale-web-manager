@@ -1,5 +1,6 @@
 # 🎮 Hytale Web Manager
 
+Projet dévelloppé entièrement par IA.
 Interface web complète pour gérer votre serveur Hytale via Docker. Cette solution vous permet de contrôler, surveiller et administrer votre serveur Hytale depuis une interface web moderne et intuitive.
 
 ![License](https://img.shields.io/badge/license-MIT-blue.svg)

@@ -39,6 +39,9 @@ case "$COMMAND" in
         sleep 3
         read_status
         ;;
+	update)
+        /update-server.sh
+        ;;
     status)
         # Pour status, pas besoin d'envoyer au pipe, on lit directement le fichier
         if [ -f "$STATUS_FILE" ]; then
@@ -72,7 +75,7 @@ case "$COMMAND" in
         ;;
     *)
         echo "Commande invalide: $COMMAND"
-        echo "Commandes disponibles: start, stop, restart, status"
+        echo "Commandes disponibles: start, stop, restart, update, status"
         exit 1
         ;;
 esac

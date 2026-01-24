@@ -235,6 +235,13 @@ async getServerStatus() {
     console.log('   Résultat:', result);
     return result;
   }
+  
+  async updateServer() {
+  console.log('🔄 Mise à jour du serveur...');
+  const result = await this.executeCommand('update', false);
+  console.log('   Résultat:', result);
+  return { success: true, message: result };
+  }
 
   async getLogs(lines = 100) {
     try {
