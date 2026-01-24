@@ -109,35 +109,26 @@ fi
 log_success "Serveur arrêté"
 
 # ========================================
-# Étape 3.5 : Configurer les tokens OAuth pour le downloader
+# Étape 3.5 : Configurer l'authentification pour le downloader
 # ========================================
-log_info "Configuration des tokens OAuth..."
+log_info "Configuration de l'authentification..."
 
-# Le downloader cherche dans ~/.hytale/tokens
-mkdir -p /root/.hytale/tokens
-
-# Copier les tokens depuis /data vers ~/.hytale/tokens
-if [ -f "/data/.auth_token" ]; then
-    cp /data/.auth_token /root/.hytale/tokens/ 2>/dev/null || true
-    log_success "Token .auth_token copié"
-fi
-
+# Le serveur utilise auth.enc dans /data
+# Le downloader cherche probablement dans ~/.hytale/ ou le dossier courant
 if [ -f "/data/auth.enc" ]; then
-    cp /data/auth.enc /root/.hytale/tokens/ 2>/dev/null || true
-    log_success "Token auth.enc copié"
-fi
-
-# Copier tous les fichiers du dossier /data/tokens s'il contient quelque chose
-if [ -d "/data/tokens" ] && [ "$(ls -A /data/tokens 2>/dev/null)" ]; then
-    cp -r /data/tokens/* /root/.hytale/tokens/ 2>/dev/null || true
-    log_success "Tokens additionnels copiés"
-fi
-
-# Vérifier
-if [ "$(ls -A /root/.hytale/tokens 2>/dev/null)" ]; then
-    log_success "✅ Tokens configurés, tentative sans OAuth..."
+    # Copier dans plusieurs emplacements possibles
+    cp /data/auth.enc /root/.hytale/ 2>/dev/null || true
+    cp /data/auth.enc /data/.hytale/ 2>/dev/null || true
+    cp /data/auth.enc . 2>/dev/null || true
+    log_success "✅ Fichier auth.enc copié"
 else
-    log_warn "⚠️ Aucun token trouvé, authentification OAuth sera requise"
+    log_warn "⚠️ Aucun auth.enc trouvé, authentification OAuth sera requise"
+fi
+
+# Copier aussi .auth_token si présent
+if [ -f "/data/.auth_token" ]; then
+    cp /data/.auth_token /root/.hytale/ 2>/dev/null || true
+    log_success "✅ Token .auth_token copié"
 fi
 
 # ========================================
