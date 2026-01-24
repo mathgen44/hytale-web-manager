@@ -77,33 +77,17 @@ if [ ! -f "$DOWNLOADER_BIN" ]; then
 fi
 
 # ========================================
-# Étape 2 : Vérifier les versions
+# Étape 2 : Vérifier la version actuelle
 # ========================================
-log_info "Vérification des versions..."
+log_info "Vérification de la version actuelle..."
 
 # Version actuelle (depuis les fichiers téléchargés)
 CURRENT_VERSION=$(ls -t "$DATA_DIR"/*.zip 2>/dev/null | grep -v "hytale-downloader" | grep -v "Assets" | head -1 | xargs basename 2>/dev/null | sed 's/.zip//' || echo "unknown")
 log_info "📦 Version actuelle: $CURRENT_VERSION"
 
-# Version disponible (depuis hytale-downloader)
-log_info "🌐 Interrogation du serveur de mise à jour..."
-AVAILABLE_VERSION=$("$DOWNLOADER_BIN" -print-version 2>&1 | grep -oP '\d{4}\.\d{2}\.\d{2}-[a-f0-9]+' | head -1 || echo "unknown")
-
-if [ "$AVAILABLE_VERSION" = "unknown" ]; then
-    log_warn "Impossible de récupérer la version disponible"
-    # Si on ne peut pas vérifier, on continue quand même
-    AVAILABLE_VERSION="$CURRENT_VERSION"
-fi
-
-log_info "🌐 Version disponible: $AVAILABLE_VERSION"
-
-# Comparer les versions
-if [ "$CURRENT_VERSION" = "$AVAILABLE_VERSION" ] && [ "$CURRENT_VERSION" != "unknown" ]; then
-    log_success "Serveur déjà à jour (version $CURRENT_VERSION)"
-    exit 0
-fi
-
-log_info "🆕 Mise à jour nécessaire: $CURRENT_VERSION → $AVAILABLE_VERSION"
+# Note: -print-version nécessite OAuth, donc on lance directement la mise à jour
+# Le downloader vérifiera lui-même si une mise à jour est disponible
+log_info "🔄 Lancement de la mise à jour (le downloader vérifiera automatiquement)..."
 
 # ========================================
 # Étape 3 : Arrêter le serveur

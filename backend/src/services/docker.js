@@ -204,10 +204,11 @@ async getServerStatus() {
           reject(err);
         });
 
-        // Timeout de 10 secondes
-        setTimeout(() => {
-          reject(new Error('Timeout lors de l\'exécution de la commande'));
-        }, 10000);
+        // Timeout adaptatif : 5 minutes pour update, 10s pour le reste
+		const timeoutMs = command === 'update' ? 300000 : 10000;
+		setTimeout(() => {
+		reject(new Error('Timeout lors de l\'exécution de la commande'));
+		}, timeoutMs);
       });
     } catch (error) {
       console.error('❌ Erreur executeCommand:', error.message);
