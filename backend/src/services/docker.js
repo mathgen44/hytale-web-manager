@@ -3,8 +3,11 @@ import dotenv from 'dotenv';
 
 dotenv.config();
 
+console.log('🔧 [docker.js] Module chargé !');
+
 class DockerService {
   constructor() {
+	console.log('🔧 [DockerService] Constructor appelé !');
     this.docker = new Docker();
     this.containerName = process.env.CONTAINER_NAME || 'hytale-server';
     this.container = null;
