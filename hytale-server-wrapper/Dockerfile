@@ -21,5 +21,8 @@ RUN chmod +x /wrapper.sh /control-server.sh /update-server.sh
 # Créer le pipe pour les commandes de contrôle
 RUN mkfifo /tmp/server-control
 
+# Créer le dossier pour le volume partagé
+RUN mkdir -p /tmp/oauth-shared && chmod 777 /tmp/oauth-shared
+
 # Utiliser le wrapper comme entrypoint
 ENTRYPOINT ["/wrapper.sh"]

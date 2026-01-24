@@ -50,10 +50,14 @@ router.get('/version', async (req, res) => {
 // GET /api/server/oauth-url - Récupérer l'URL OAuth du downloader
 router.get('/oauth-url', async (req, res) => {
   try {
-    const result = await dockerService.executeCommand('oauth-url', false);
-    const url = result.trim();
+    const fs = await import('fs/promises');
     
-    console.log('📋 [oauth-url] Résultat:', url);
+    // Lire le fichier depuis le volume partagé
+    const url = await fs.readFile('/tmp/oauth-shared/oauth-url.txt', 'utf8')
+      .then(content => content.trim())
+      .catch(() => '');
+    
+    console.log('📋 [oauth-url] Lecture fichier partagé:', url || '(vide)');
     
     if (url && url.startsWith('https://oauth.accounts.hytale.com/')) {
       console.log('✅ [oauth-url] URL OAuth détectée');

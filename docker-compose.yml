@@ -6,17 +6,18 @@ services:
       dockerfile: Dockerfile
     container_name: hytale-server
     restart: unless-stopped
-    stdin_open: true    # ← AJOUTER (pour docker attach)
-    tty: true           # ← AJOUTER
+    stdin_open: true
+    tty: true
     ports:
       - "5520:5520/udp"
     volumes:
       - ./data:/data
-      - ./data/tokens:/server/.hytale/tokens           # ← AJOUTER
-      - /etc/machine-id:/etc/machine-id:ro             # ← AJOUTER
+      - ./data/tokens:/server/.hytale/tokens
+      - /etc/machine-id:/etc/machine-id:ro
+      - oauth-shared:/tmp/oauth-shared                 # ← NOUVEAU (pour OAuth URL)
     environment:
       - MEMORY=${MEMORY:-4G}
-      - HYA_UUID=123e4567-e89b-12d3-a456-426614174000  # ← AJOUTER
+      - HYA_UUID=123e4567-e89b-12d3-a456-426614174000
       - INIT_MEMORY=${INIT_MEMORY:-}
       - MAX_MEMORY=${MAX_MEMORY:-}
       - SERVER_PORT=${SERVER_PORT:-5520}
@@ -42,6 +43,7 @@ services:
       - "4000:4000"
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
+      - oauth-shared:/tmp/oauth-shared                 # ← NOUVEAU (pour OAuth URL)
     environment:
       - PORT=4000
       - HYTALE_CONTAINER_NAME=hytale-server
@@ -74,4 +76,6 @@ networks:
 
 volumes:
   data:
+    driver: local
+  oauth-shared:                                        # ← NOUVEAU (volume partagé OAuth)
     driver: local

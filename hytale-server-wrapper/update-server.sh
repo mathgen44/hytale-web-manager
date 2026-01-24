@@ -9,7 +9,7 @@ DOWNLOADER_URL="https://downloader.hytale.com/hytale-downloader.zip"
 DOWNLOADER_BIN="/usr/local/bin/hytale-downloader"
 DATA_DIR="/data"
 LOG_FILE="/tmp/downloader-output.log"
-OAUTH_FILE="/tmp/oauth-url.txt"
+OAUTH_FILE="/tmp/oauth-shared/oauth-url.txt"
 
 # Couleurs pour les logs
 log_info() {
@@ -143,6 +143,9 @@ for i in $(seq 1 $OAUTH_TIMEOUT); do
             
             # Écrire l'URL dans un fichier pour que le backend la récupère
             echo "$OAUTH_URL" > "$OAUTH_FILE"
+			
+			# S'assurer que le fichier est lisible
+            chmod 644 "$OAUTH_FILE"
             
             log_info "⏳ En attente de l'authentification (expires dans 15 minutes)..."
         fi
@@ -152,6 +155,8 @@ for i in $(seq 1 $OAUTH_TIMEOUT); do
     if grep -q "Authentication successful\|Download complete" "$LOG_FILE" 2>/dev/null; then
         if [ "$OAUTH_DETECTED" = true ]; then
             log_success "✅ Authentification réussie"
+			# Nettoyer le fichier OAuth
+            rm -f "$OAUTH_FILE"
         fi
         log_info "Téléchargement en cours..."
         break
@@ -172,6 +177,9 @@ if [ $DOWNLOAD_EXIT_CODE -ne 0 ]; then
     log_error "Échec du téléchargement (code: $DOWNLOAD_EXIT_CODE)"
     log_info "Logs du downloader:"
     tail -20 "$LOG_FILE"
+	
+	# Nettoyer le fichier OAuth en cas d'erreur
+    rm -f "$OAUTH_FILE"
     
     log_info "🚀 Redémarrage du serveur avec l'ancienne version..."
     echo "start" > /tmp/server-control
