@@ -50,16 +50,40 @@ router.get('/version', async (req, res) => {
 // GET /api/server/oauth-url - Récupérer l'URL OAuth du downloader
 router.get('/oauth-url', async (req, res) => {
   try {
-    // Lire le fichier OAuth créé par update-server.sh
-    const result = await dockerService.executeCommand('cat /tmp/oauth-url.txt 2>/dev/null || echo ""', false);
-    const url = result.trim();
+    // Lire le fichier depuis le conteneur hytale-server via docker exec
+    const container = await dockerService.getContainer();
+    if (!container) {
+      return res.json({ url: null, active: false });
+    }
+
+    const exec = await container.exec({
+      Cmd: ['sh', '-c', 'cat /tmp/oauth-url.txt 2>/dev/null || echo ""'],
+      AttachStdout: true,
+      AttachStderr: true
+    });
+
+    const stream = await exec.start();
     
-    if (url && url.startsWith('https://accounts.hytale.com/device')) {
+    let output = '';
+    stream.on('data', (chunk) => {
+      const text = chunk.toString('utf8');
+      const cleanText = text.length > 8 ? text.substring(8) : text;
+      output += cleanText;
+    });
+
+    await new Promise((resolve) => {
+      stream.on('end', resolve);
+    });
+
+    const url = output.trim();
+    
+    if (url && url.startsWith('https://oauth.accounts.hytale.com/device')) {
       res.json({ url, active: true });
     } else {
       res.json({ url: null, active: false });
     }
   } catch (error) {
+    console.error('Erreur lecture OAuth URL:', error);
     res.json({ url: null, active: false });
   }
 });
