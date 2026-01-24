@@ -238,32 +238,41 @@ async getServerStatus() {
   }
   
   async updateServer() {
-  console.log('🔄 Mise à jour du serveur...');
-  const result = await this.executeCommand('update', false);
-  console.log('   Résultat:', result);
-  return { success: true, message: result };
-  }
-
-  async getLogs(lines = 100) {
-    try {
-      const container = await this.getContainer();
-      if (!container) {
-        throw new Error('Conteneur non trouvé');
-      }
-
-      const logs = await container.logs({
-        stdout: true,
-        stderr: true,
-        tail: lines,
-        timestamps: true
-      });
-
-      return logs.toString('utf8');
-    } catch (error) {
-      console.error('❌ Erreur getLogs:', error.message);
-      throw error;
+  console.log('🔄 Lancement de la mise à jour en arrière-plan...');
+  
+  try {
+    const container = await this.getContainer();
+    if (!container) {
+      throw new Error('Conteneur non trouvé');
     }
+
+    const info = await container.inspect();
+    if (!info.State.Running) {
+      throw new Error('Le conteneur n\'est pas en cours d\'exécution');
+    }
+
+    // Lancer le script en arrière-plan avec nohup
+    const cmd = ['sh', '-c', 'nohup /update-server.sh > /tmp/update.log 2>&1 &'];
+    
+    const exec = await container.exec({
+      Cmd: cmd,
+      AttachStdout: true,
+      AttachStderr: true,
+      Detach: true
+    });
+
+    await exec.start({ Detach: true });
+    
+    console.log('✅ Mise à jour lancée en arrière-plan');
+    return { 
+      success: true, 
+      message: 'Mise à jour lancée. Surveillez les logs et la popup OAuth si nécessaire.' 
+    };
+  } catch (error) {
+    console.error('❌ Erreur updateServer:', error.message);
+    throw error;
   }
+}
 
   async streamLogs(callback) {
     try {

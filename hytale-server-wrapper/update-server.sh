@@ -134,7 +134,7 @@ for i in $(seq 1 $OAUTH_TIMEOUT); do
     
     # Chercher l'URL OAuth dans les logs
     if [ "$OAUTH_DETECTED" = false ]; then
-        OAUTH_URL=$(grep -oP 'https://accounts\.hytale\.com/device\?user_code=[A-Z0-9-]+' "$LOG_FILE" 2>/dev/null | head -1 || true)
+        OAUTH_URL=$(grep -oP 'https://oauth\.accounts\.hytale\.com/oauth2/device/verify\?user_code=[A-Za-z0-9]+' "$LOG_FILE" 2>/dev/null | head -1 || true)
         
         if [ ! -z "$OAUTH_URL" ]; then
             OAUTH_DETECTED=true
