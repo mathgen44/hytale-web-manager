@@ -52,7 +52,7 @@ class DockerService {
     return this.container;
   }
 
-  async getStatus() {
+  async getServerStatus() {
     try {
       const container = await this.getContainer();
       if (!container) {
@@ -261,7 +261,7 @@ class DockerService {
     }
   }
 
-  async getStats() {
+  async getContainerStats() {
     try {
       const container = await this.getContainer();
       if (!container) {
