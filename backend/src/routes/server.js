@@ -79,10 +79,17 @@ router.get('/version', async (req, res) => {
   try {
     const logs = await dockerService.getLogs(200);
     
+    // DEBUG : Voir ce qu'on reçoit vraiment
+    console.log('=== DEBUG LOGS ===');
+    console.log('Longueur:', logs.length);
+    console.log('Premiers 500 caractères:', logs.substring(0, 500));
+    console.log('Contient "Version"?', logs.includes('Version'));
+    console.log('Contient "HytaleServer"?', logs.includes('HytaleServer'));
+    console.log('==================');
+    
     // Regex pour extraire la version des logs
-    // Format: "Version: 2026.01.17-4b0f30090, Revision: 4b0f30090ab99c9ce84652006e40c825c555ad98"
     const versionMatch = logs.match(/Version:\s*([\d]{4}\.[\d]{2}\.[\d]{2}-[a-f0-9]+)/i);
-    const revisionMatch = logs.match(/Revision:\s*([a-f0-9]{8})[a-f0-9]*/i);
+    const revisionMatch = logs.match(/Revision:\s*([a-f0-9]{8})/i);
     
     const currentVersion = versionMatch ? versionMatch[1] : 'unknown';
     const currentRevision = revisionMatch ? revisionMatch[1] : 'unknown';
