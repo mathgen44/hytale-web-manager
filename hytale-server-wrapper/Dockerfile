@@ -1,12 +1,14 @@
 FROM enesbakis/hytale-docker:latest
 
-# Installer outils + curl pour hytale-downloader
+# Installer les outils nécessaires pour le contrôle du serveur
+# Ajout de curl pour télécharger hytale-downloader
+# Ajout de unzip pour décompresser les archives
 RUN if command -v apk >/dev/null 2>&1; then \
-        apk add --no-cache bash procps coreutils curl; \
+        apk add --no-cache bash procps coreutils curl unzip; \
     elif command -v apt-get >/dev/null 2>&1; then \
-        apt-get update && apt-get install -y bash procps coreutils curl && rm -rf /var/lib/apt/lists/*; \
+        apt-get update && apt-get install -y bash procps coreutils curl unzip && rm -rf /var/lib/apt/lists/*; \
     elif command -v yum >/dev/null 2>&1; then \
-        yum install -y bash procps coreutils curl && yum clean all; \
+        yum install -y bash procps coreutils curl unzip && yum clean all; \
     fi
 
 # Copier les scripts de contrôle

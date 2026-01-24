@@ -12,9 +12,22 @@ function App() {
   const [command, setCommand] = useState('');
   const [commandHistory, setCommandHistory] = useState([]);
   const [serverVersion, setServerVersion] = useState({ current: 'loading...', revision: '' });
+  const [oauthUrl, setOauthUrl] = useState(null);
   const [loading, setLoading] = useState({});
   const logsEndRef = useRef(null);
   const wsRef = useRef(null);
+
+  const formatUptime = (seconds) => {
+    const days = Math.floor(seconds / 86400);
+    const hours = Math.floor((seconds % 86400) / 3600);
+    const minutes = Math.floor((seconds % 3600) / 60);
+    const secs = seconds % 60;
+    
+    if (days > 0) return `${days}j ${hours}h ${minutes}m`;
+    else if (hours > 0) return `${hours}h ${minutes}m ${secs}s`;
+    else if (minutes > 0) return `${minutes}m ${secs}s`;
+    else return `${secs}s`;
+  };
 
   // Connexion WebSocket pour les logs
   useEffect(() => {
@@ -130,17 +143,30 @@ function App() {
     }
   }, [serverStatus.server]);
 
-  const formatUptime = (seconds) => {
-    const days = Math.floor(seconds / 86400);
-    const hours = Math.floor((seconds % 86400) / 3600);
-    const minutes = Math.floor((seconds % 3600) / 60);
-    const secs = seconds % 60;
+  // Polling pour détecter l'URL OAuth pendant une mise à jour
+  useEffect(() => {
+    if (!loading.update) {
+      setOauthUrl(null); // Reset quand pas en update
+      return;
+    }
     
-    if (days > 0) return `${days}j ${hours}h ${minutes}m`;
-    else if (hours > 0) return `${hours}h ${minutes}m ${secs}s`;
-    else if (minutes > 0) return `${minutes}m ${secs}s`;
-    else return `${secs}s`;
-  };
+    const checkOAuth = setInterval(async () => {
+      try {
+        const res = await fetch(`${API_URL}/api/server/oauth-url`);
+        const data = await res.json();
+        if (data.active && data.url) {
+          setOauthUrl(data.url);
+        } else if (!data.active && oauthUrl) {
+          // L'auth est terminée
+          setOauthUrl(null);
+        }
+      } catch (error) {
+        console.error('Erreur vérification OAuth:', error);
+      }
+    }, 3000);
+    
+    return () => clearInterval(checkOAuth);
+  }, [loading.update, oauthUrl]);
 
   const handleServerAction = async (action) => {
     setLoading({ ...loading, [action]: true });
@@ -156,7 +182,7 @@ function App() {
   };
 
   const handleUpdate = async () => {
-    if (!window.confirm('Voulez-vous mettre à jour le serveur ? Il sera redémarré.')) {
+    if (!window.confirm('Voulez-vous mettre à jour le serveur ? Il sera redémarré automatiquement.')) {
       return;
     }
     
@@ -165,12 +191,18 @@ function App() {
       const res = await fetch(`${API_URL}/api/server/update`, { method: 'POST' });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
-      alert('Mise à jour lancée ! Le serveur va redémarrer.');
+      
+      // La mise à jour est lancée, on surveille l'OAuth dans le useEffect
+      alert('Mise à jour lancée ! Surveillez les logs. Si une authentification est requise, une popup apparaîtra.');
     } catch (error) {
       alert(`Erreur: ${error.message}`);
-    } finally {
       setLoading({ ...loading, update: false });
     }
+    
+    // On garde loading.update à true jusqu'à ce que le serveur redémarre
+    setTimeout(() => {
+      setLoading({ ...loading, update: false });
+    }, 120000); // Timeout de 2 minutes
   };
 
   const handlePlayerAction = async (playerName, action) => {
@@ -321,6 +353,43 @@ function App() {
             </div>
           )}
         </div>
+
+        {/* Popup OAuth */}
+        {oauthUrl && (
+          <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4">
+            <div className="bg-white p-8 rounded-lg max-w-lg w-full shadow-2xl">
+              <h2 className="text-2xl font-bold mb-4 text-slate-800 flex items-center gap-2">
+                <Download className="w-6 h-6 text-purple-600" />
+                🔐 Authentification OAuth requise
+              </h2>
+              <p className="mb-4 text-slate-600">
+                Le téléchargeur Hytale nécessite une authentification pour accéder aux fichiers de mise à jour.
+              </p>
+              <div className="bg-slate-100 p-4 rounded mb-4 border border-slate-300">
+                <p className="text-sm font-mono text-slate-700 break-all">{oauthUrl}</p>
+              </div>
+              <a
+                href={oauthUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="block w-full px-4 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 text-center font-semibold mb-3 transition-colors"
+              >
+                🔗 Cliquer ici pour s'authentifier
+              </a>
+              <p className="text-sm text-slate-500 mb-4">
+                ⏱️ Une fois authentifié dans votre navigateur, la mise à jour continuera automatiquement.
+                <br />
+                💡 Vous avez 15 minutes pour compléter l'authentification.
+              </p>
+              <button
+                onClick={() => setOauthUrl(null)}
+                className="text-sm text-slate-400 hover:text-slate-600 underline"
+              >
+                Fermer cette popup (l'authentification est toujours active)
+              </button>
+            </div>
+          </div>
+        )}
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Joueurs */}
