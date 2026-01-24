@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Play, Square, RotateCw, Users, Terminal, Activity, HardDrive, Cpu, Clock } from 'lucide-react';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000';
-const WS_URL = import.meta.env.VITE_WS_URL || 'ws://localhost:4000';
+const API_URL = '';  // Vide = même domaine
+const WS_URL = `ws://${window.location.host}`;  // Même host que la page
 
 function App() {
   const [serverStatus, setServerStatus] = useState({ server: 'loading', container: 'loading' });
