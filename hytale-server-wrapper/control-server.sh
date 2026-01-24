@@ -73,9 +73,17 @@ case "$COMMAND" in
             fi
         fi
         ;;
+	    oauth-url)
+        # Lire le fichier OAuth URL s'il existe
+        if [ -f "/tmp/oauth-url.txt" ]; then
+            cat /tmp/oauth-url.txt
+        else
+            echo ""
+        fi
+        ;;
     *)
         echo "Commande invalide: $COMMAND"
-        echo "Commandes disponibles: start, stop, restart, update, status"
+        echo "Commandes disponibles: start, stop, restart, status, update, oauth-url"
         exit 1
         ;;
 esac
