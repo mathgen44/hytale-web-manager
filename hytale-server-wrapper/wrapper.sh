@@ -68,10 +68,6 @@ start_server() {
     # Arguments du serveur
     SERVER_ARGS=""
     
-    if [ -n "$SERVER_PORT" ]; then
-        SERVER_ARGS="$SERVER_ARGS --port=$SERVER_PORT"
-    fi
-    
     # Démarrage du serveur en arrière-plan
     cd /data
     java $JVM_ARGS -jar "$SERVER_JAR" $SERVER_ARGS > /tmp/server.log 2>&1 &
