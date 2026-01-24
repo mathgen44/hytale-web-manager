@@ -50,7 +50,6 @@ router.get('/version', async (req, res) => {
 // GET /api/server/oauth-url - Récupérer l'URL OAuth du downloader
 router.get('/oauth-url', async (req, res) => {
   try {
-    // Utiliser control-server.sh qui gère la lecture du fichier
     const result = await dockerService.executeCommand('oauth-url', false);
     const url = result.trim();
     
