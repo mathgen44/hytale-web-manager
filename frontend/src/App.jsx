@@ -1,26 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Play, Square, RotateCw, Users, Terminal, Activity, HardDrive, Cpu, Clock, Download } from 'lucide-react';
 
-const API_URL = import.meta.env.VITE_API_URL || '';
-const WS_URL = import.meta.env.VITE_WS_URL || `ws://${window.location.host}`;
-
-// Fonction pour formater l'uptime en durée lisible
-  const formatUptime = (seconds) => {
-  const days = Math.floor(seconds / 86400);
-  const hours = Math.floor((seconds % 86400) / 3600);
-  const minutes = Math.floor((seconds % 3600) / 60);
-  const secs = seconds % 60;
-  
-  if (days > 0) {
-    return `${days}j ${hours}h ${minutes}m`;
-  } else if (hours > 0) {
-    return `${hours}h ${minutes}m ${secs}s`;
-  } else if (minutes > 0) {
-    return `${minutes}m ${secs}s`;
-  } else {
-    return `${secs}s`;
-  }
-};
+const API_URL = '';  // URL relative
+const WS_URL = `ws://${window.location.host}`;
 
 function App() {
   const [serverStatus, setServerStatus] = useState({ server: 'loading', container: 'loading' });
@@ -123,10 +105,17 @@ function App() {
         console.error('Erreur récupération joueurs:', error);
       }
     };
-	
+
+    if (serverStatus.server === 'running') {
+      fetchPlayers();
+      const interval = setInterval(fetchPlayers, 10000);
+      return () => clearInterval(interval);
+    }
+  }, [serverStatus.server]);
+
   // Récupération de la version
   useEffect(() => {
-	const fetchVersion = async () => {
+    const fetchVersion = async () => {
       try {
         const res = await fetch(`${API_URL}/api/server/version`);
         const data = await res.json();
@@ -136,17 +125,22 @@ function App() {
       }
     };
 
-  if (serverStatus.server === 'running') {
-    fetchVersion();
-  }
-}, [serverStatus.server]);
-
     if (serverStatus.server === 'running') {
-      fetchPlayers();
-      const interval = setInterval(fetchPlayers, 10000);
-      return () => clearInterval(interval);
+      fetchVersion();
     }
   }, [serverStatus.server]);
+
+  const formatUptime = (seconds) => {
+    const days = Math.floor(seconds / 86400);
+    const hours = Math.floor((seconds % 86400) / 3600);
+    const minutes = Math.floor((seconds % 3600) / 60);
+    const secs = seconds % 60;
+    
+    if (days > 0) return `${days}j ${hours}h ${minutes}m`;
+    else if (hours > 0) return `${hours}h ${minutes}m ${secs}s`;
+    else if (minutes > 0) return `${minutes}m ${secs}s`;
+    else return `${secs}s`;
+  };
 
   const handleServerAction = async (action) => {
     setLoading({ ...loading, [action]: true });
@@ -158,6 +152,24 @@ function App() {
       alert(`Erreur: ${error.message}`);
     } finally {
       setLoading({ ...loading, [action]: false });
+    }
+  };
+
+  const handleUpdate = async () => {
+    if (!window.confirm('Voulez-vous mettre à jour le serveur ? Il sera redémarré.')) {
+      return;
+    }
+    
+    setLoading({ ...loading, update: true });
+    try {
+      const res = await fetch(`${API_URL}/api/server/update`, { method: 'POST' });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      alert('Mise à jour lancée ! Le serveur va redémarrer.');
+    } catch (error) {
+      alert(`Erreur: ${error.message}`);
+    } finally {
+      setLoading({ ...loading, update: false });
     }
   };
 
@@ -191,24 +203,6 @@ function App() {
     .catch(error => alert(`Erreur: ${error.message}`));
   };
 
-  const handleUpdate = async () => {
-    if (!window.confirm('Voulez-vous mettre à jour le serveur ? Il sera redémarré.')) {
-      return;
-    }
-  
-    setLoading({ ...loading, update: true });
-    try {
-      const res = await fetch(`${API_URL}/api/server/update`, { method: 'POST' });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error);
-      alert('Mise à jour lancée ! Le serveur va redémarrer.');
-    } catch (error) {
-      alert(`Erreur: ${error.message}`);
-    } finally {
-      setLoading({ ...loading, update: false });
-    }
-  };
-  
   const getStatusColor = (status) => {
     if (status === 'running') return 'text-green-500';
     if (status === 'stopped') return 'text-red-500';
@@ -269,24 +263,24 @@ function App() {
                 disabled={loading.restart}
                 className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center gap-2"
               >
-			  
-			  <button
-				onClick={handleUpdate}
-				disabled={loading.update}
-				className="px-4 py-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600 disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center gap-2"
-			  >
-				<Download className="w-4 h-4" />
-				{loading.update ? 'Mise à jour...' : 'Mettre à jour'}
-			   </button>
                 <RotateCw className="w-4 h-4" />
                 {loading.restart ? 'Redémarrage...' : 'Redémarrer'}
+              </button>
+
+              <button
+                onClick={handleUpdate}
+                disabled={loading.update}
+                className="px-4 py-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600 disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center gap-2"
+              >
+                <Download className="w-4 h-4" />
+                {loading.update ? 'Mise à jour...' : 'Mettre à jour'}
               </button>
             </div>
           </div>
 
           {/* Stats */}
           {serverStatus.container === 'running' && (
-            <div className="grid grid-cols-3 gap-4 mt-6">
+            <div className="grid grid-cols-4 gap-4 mt-6">
               <div className="bg-white bg-opacity-50 p-4 rounded-lg">
                 <div className="flex items-center gap-2 mb-2">
                   <Cpu className="w-5 h-5 text-blue-600" />
@@ -310,20 +304,20 @@ function App() {
                   <span className="font-semibold text-slate-700">Uptime</span>
                 </div>
                 <p className="text-lg font-bold text-slate-800">
-				  {serverStatus.uptime ? formatUptime(serverStatus.uptime) : 'N/A'}
-				</p>
+                  {serverStatus.uptime ? formatUptime(serverStatus.uptime) : 'N/A'}
+                </p>
               </div>
-			  
-			  <div className="bg-white bg-opacity-50 p-4 rounded-lg">
-				<div className="flex items-center gap-2 mb-2">
-					<Activity className="w-5 h-5 text-orange-600" />
-					<span className="font-semibold text-slate-700">Version</span>
-				</div>
-				<p className="text-lg font-bold text-slate-800">{serverVersion.current}</p>
-				{serverVersion.revision && (
-					<p className="text-xs text-slate-600">Rev: {serverVersion.revision}</p>
-				)}
-				</div>
+
+              <div className="bg-white bg-opacity-50 p-4 rounded-lg">
+                <div className="flex items-center gap-2 mb-2">
+                  <Activity className="w-5 h-5 text-orange-600" />
+                  <span className="font-semibold text-slate-700">Version</span>
+                </div>
+                <p className="text-lg font-bold text-slate-800">{serverVersion.current}</p>
+                {serverVersion.revision && (
+                  <p className="text-xs text-slate-600">Rev: {serverVersion.revision}</p>
+                )}
+              </div>
             </div>
           )}
         </div>
@@ -393,24 +387,23 @@ function App() {
               <div ref={logsEndRef} />
             </div>
             
-            <div className="flex gap-2">
+            <form onSubmit={handleCommandSubmit} className="flex gap-2">
               <input
                 type="text"
                 value={command}
                 onChange={(e) => setCommand(e.target.value)}
-                onKeyPress={(e) => e.key === 'Enter' && handleCommandSubmit(e)}
                 placeholder="/command"
                 className="flex-1 px-3 py-2 bg-slate-700 text-white rounded border border-slate-600 focus:outline-none focus:border-blue-500"
                 disabled={serverStatus.server !== 'running'}
               />
               <button
-                onClick={handleCommandSubmit}
+                type="submit"
                 disabled={serverStatus.server !== 'running' || !command.trim()}
                 className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:bg-gray-600 disabled:cursor-not-allowed"
               >
                 Envoyer
               </button>
-            </div>
+            </form>
           </div>
         </div>
       </div>
