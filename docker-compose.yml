@@ -1,7 +1,7 @@
 services:
   # Serveur Hytale avec wrapper de contrôle
   hytale-server:
-  build:
+   build:
     context: ./hytale-server-wrapper
     dockerfile: Dockerfile
     container_name: hytale-server
