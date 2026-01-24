@@ -113,19 +113,31 @@ log_success "Serveur arrêté"
 # ========================================
 log_info "Configuration des tokens OAuth..."
 
-# Créer un lien symbolique vers les tokens du serveur
-# Le downloader cherche dans ~/.hytale/tokens ou /root/.hytale/tokens
-mkdir -p /root/.hytale
-if [ -d "/server/.hytale/tokens" ] && [ ! -L "/root/.hytale/tokens" ]; then
-    ln -sf /server/.hytale/tokens /root/.hytale/tokens
-    log_success "Tokens partagés avec le downloader"
+# Le downloader cherche dans ~/.hytale/tokens
+mkdir -p /root/.hytale/tokens
+
+# Copier les tokens depuis /data vers ~/.hytale/tokens
+if [ -f "/data/.auth_token" ]; then
+    cp /data/.auth_token /root/.hytale/tokens/ 2>/dev/null || true
+    log_success "Token .auth_token copié"
 fi
 
-# Vérifier que les tokens existent
-if [ -d "/root/.hytale/tokens" ] && [ "$(ls -A /root/.hytale/tokens 2>/dev/null)" ]; then
-    log_success "Tokens OAuth trouvés, pas d'authentification nécessaire"
+if [ -f "/data/auth.enc" ]; then
+    cp /data/auth.enc /root/.hytale/tokens/ 2>/dev/null || true
+    log_success "Token auth.enc copié"
+fi
+
+# Copier tous les fichiers du dossier /data/tokens s'il contient quelque chose
+if [ -d "/data/tokens" ] && [ "$(ls -A /data/tokens 2>/dev/null)" ]; then
+    cp -r /data/tokens/* /root/.hytale/tokens/ 2>/dev/null || true
+    log_success "Tokens additionnels copiés"
+fi
+
+# Vérifier
+if [ "$(ls -A /root/.hytale/tokens 2>/dev/null)" ]; then
+    log_success "✅ Tokens configurés, tentative sans OAuth..."
 else
-    log_warn "Aucun token trouvé, authentification OAuth sera requise"
+    log_warn "⚠️ Aucun token trouvé, authentification OAuth sera requise"
 fi
 
 # ========================================
