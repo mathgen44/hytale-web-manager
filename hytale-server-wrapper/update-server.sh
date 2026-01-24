@@ -82,7 +82,7 @@ fi
 log_info "Vérification des versions..."
 
 # Version actuelle (depuis les fichiers téléchargés)
-CURRENT_VERSION=$(ls -t "$DATA_DIR"/*.zip 2>/dev/null | grep -v "hytale-downloader" | head -1 | xargs basename 2>/dev/null | sed 's/.zip//' || echo "unknown")
+CURRENT_VERSION=$(ls -t "$DATA_DIR"/*.zip 2>/dev/null | grep -v "hytale-downloader" | grep -v "Assets" | head -1 | xargs basename 2>/dev/null | sed 's/.zip//' || echo "unknown")
 log_info "📦 Version actuelle: $CURRENT_VERSION"
 
 # Version disponible (depuis hytale-downloader)
@@ -200,7 +200,7 @@ log_success "Téléchargement réussi"
 # Étape 5 : Extraire et installer la mise à jour
 # ========================================
 # Trouver l'archive téléchargée (la plus récente, hors hytale-downloader.zip)
-NEW_ARCHIVE=$(ls -t "$DATA_DIR"/*.zip 2>/dev/null | grep -v "hytale-downloader" | head -1 || true)
+NEW_ARCHIVE=$(ls -t "$DATA_DIR"/*.zip 2>/dev/null | grep -v "hytale-downloader" | grep -v "Assets" | head -1 || true)
 
 if [ -z "$NEW_ARCHIVE" ] || [ ! -f "$NEW_ARCHIVE" ]; then
     log_error "Archive de mise à jour introuvable"
