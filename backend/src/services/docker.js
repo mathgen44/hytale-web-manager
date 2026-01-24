@@ -15,38 +15,33 @@ class DockerService {
   }
 
   async init() {
-    if (this.initialized && this.container) {
-      return;
-    }
-
-    try {
-      const containers = await this.docker.listContainers({ all: true });
-      
-      // Chercher le conteneur par nom
-      const found = containers.find(c => 
-        c.Names.some(name => 
-          name.includes('hytale-server') || 
-          name.includes(this.containerName)
-        )
-      );
-      
-      if (found) {
-        this.container = this.docker.getContainer(found.Id);
-        this.initialized = true;
-        console.log('✅ Conteneur Hytale trouvé:', found.Names[0]);
-        console.log('   ID:', found.Id.substring(0, 12));
-        console.log('   État:', found.State);
-      } else {
-        console.warn('⚠️  Conteneur Hytale non trouvé');
-        console.warn('   Conteneurs disponibles:', 
-          containers.map(c => c.Names[0]).join(', ')
-        );
-      }
-    } catch (error) {
-      console.error('❌ Erreur init Docker:', error.message);
-      this.initialized = false;
-    }
+  // Toujours réinitialiser si plus de 5 minutes
+  const now = Date.now();
+  if (this.initialized && this.container && this.lastInit && (now - this.lastInit < 300000)) {
+    return;
   }
+
+  try {
+    const containers = await this.docker.listContainers({ all: true });
+    
+    const found = containers.find(c => 
+      c.Names.some(name => 
+        name.includes('hytale-server') || 
+        name.includes(this.containerName)
+      )
+    );
+    
+    if (found) {
+      this.container = this.docker.getContainer(found.Id);
+      this.initialized = true;
+      this.lastInit = now;  // ← AJOUTER
+      console.log('✅ Conteneur Hytale trouvé:', found.Names[0]);
+    }
+  } catch (error) {
+    console.error('❌ Erreur init Docker:', error.message);
+    this.initialized = false;
+  }
+}
 
   async getContainer() {
     if (!this.container || !this.initialized) {
