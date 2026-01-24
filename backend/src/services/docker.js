@@ -52,74 +52,97 @@ class DockerService {
     return this.container;
   }
 
-  async getServerStatus() {
-    try {
-      const container = await this.getContainer();
-      if (!container) {
-        return { 
-          container: 'not_found', 
-          server: 'unknown', 
-          uptime: 0,
-          pid: 0
-        };
-      }
-
-      const info = await container.inspect();
-      const containerRunning = info.State.Running;
-
-      if (!containerRunning) {
-        return { 
-          container: 'stopped', 
-          server: 'stopped', 
-          uptime: 0,
-          pid: 0
-        };
-      }
-
-      // Vérifier le statut du serveur via le script de contrôle
-      try {
-        const statusOutput = await this.executeCommand('status', false);
-        const statusLine = statusOutput.trim();
-        
-        // Format attendu: "running:PID" ou "stopped:0"
-        const [serverStatus, pidStr] = statusLine.split(':');
-        const serverRunning = serverStatus === 'running';
-        const pid = parseInt(pidStr) || 0;
-
-        // Calculer l'uptime
-        let uptime = 0;
-        if (containerRunning && serverRunning) {
-          const startTime = new Date(info.State.StartedAt);
-          uptime = Math.floor((Date.now() - startTime.getTime()) / 1000);
-        }
-
-        return {
-          container: containerRunning ? 'running' : 'stopped',
-          server: serverRunning ? 'running' : 'stopped',
-          uptime,
-          pid
-        };
-      } catch (execError) {
-        console.error('❌ Erreur lors de la vérification du statut du serveur:', execError.message);
-        
-        // En cas d'erreur, retourner un statut par défaut
-        return {
-          container: containerRunning ? 'running' : 'stopped',
-          server: 'unknown',
-          uptime: 0,
-          pid: 0
-        };
-      }
-    } catch (error) {
-      console.error('❌ Erreur getStatus:', error.message);
+async getServerStatus() {
+  try {
+    console.log('🔍 [getServerStatus] Début de la vérification du statut...');
+    
+    const container = await this.getContainer();
+    if (!container) {
+      console.log('❌ [getServerStatus] Container not found');
       return { 
-        container: 'error', 
-        server: 'error', 
+        container: 'not_found', 
+        server: 'unknown', 
         uptime: 0,
         pid: 0
       };
     }
+
+    console.log('✅ [getServerStatus] Container trouvé');
+    
+    const info = await container.inspect();
+    const containerRunning = info.State.Running;
+    
+    console.log(`🔍 [getServerStatus] Container running: ${containerRunning}`);
+    
+    if (!containerRunning) {
+      console.log('⚠️ [getServerStatus] Container stopped, retour server:stopped');
+      return { 
+        container: 'stopped', 
+        server: 'stopped', 
+        uptime: 0,
+        pid: 0
+      };
+    }
+
+    // Vérifier le statut du serveur via le script de contrôle
+    try {
+      console.log('🔍 [getServerStatus] Appel de executeCommand("status", false)...');
+      const statusOutput = await this.executeCommand('status', false);
+      console.log(`📝 [getServerStatus] Sortie brute: "${statusOutput}"`);
+      
+      const statusLine = statusOutput.trim();
+      console.log(`📝 [getServerStatus] Après trim: "${statusLine}"`);
+      
+      // Format attendu: "running:PID" ou "stopped:0"
+      const [serverStatus, pidStr] = statusLine.split(':');
+      console.log(`📝 [getServerStatus] Split: serverStatus="${serverStatus}", pidStr="${pidStr}"`);
+      
+      const serverRunning = serverStatus === 'running';
+      const pid = parseInt(pidStr) || 0;
+      
+      console.log(`🔍 [getServerStatus] serverRunning: ${serverRunning}, pid: ${pid}`);
+
+      // Calculer l'uptime
+      let uptime = 0;
+      if (containerRunning && serverRunning) {
+        const startTime = new Date(info.State.StartedAt);
+        uptime = Math.floor((Date.now() - startTime.getTime()) / 1000);
+        console.log(`⏱️ [getServerStatus] Uptime calculé: ${uptime}s`);
+      }
+
+      const result = {
+        container: containerRunning ? 'running' : 'stopped',
+        server: serverRunning ? 'running' : 'stopped',
+        uptime,
+        pid
+      };
+      
+      console.log('✅ [getServerStatus] Résultat final:', JSON.stringify(result));
+      return result;
+      
+    } catch (execError) {
+      console.error('❌ [getServerStatus] Erreur executeCommand:', execError.message);
+      console.error('❌ [getServerStatus] Stack:', execError.stack);
+      
+      // En cas d'erreur, retourner un statut par défaut
+      return {
+        container: containerRunning ? 'running' : 'stopped',
+        server: 'unknown',
+        uptime: 0,
+        pid: 0
+      };
+    }
+  } catch (error) {
+    console.error('❌ [getServerStatus] Erreur globale:', error.message);
+    console.error('❌ [getServerStatus] Stack:', error.stack);
+    return { 
+      container: 'error', 
+      server: 'error', 
+      uptime: 0,
+      pid: 0
+    };
   }
+}
 
   async executeCommand(command, isGameCommand = true) {
     try {
