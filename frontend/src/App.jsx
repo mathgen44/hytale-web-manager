@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Play, Square, RotateCw, Users, Terminal, Activity, HardDrive, Cpu, Clock, Download } from 'lucide-react';
 
-const API_URL = '';  // Vide = même domaine
+const API_URL = import.meta.env.VITE_API_URL || '';
 const WS_URL = import.meta.env.VITE_WS_URL || `ws://${window.location.host}`;
 
 // Fonction pour formater l'uptime en durée lisible
