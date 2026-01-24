@@ -4,6 +4,24 @@ import { Play, Square, RotateCw, Users, Terminal, Activity, HardDrive, Cpu, Cloc
 const API_URL = '';  // Vide = même domaine
 const WS_URL = `ws://${window.location.host}`;  // Même host que la page
 
+// Fonction pour formater l'uptime en durée lisible
+const formatUptime = (seconds) => {
+  const days = Math.floor(seconds / 86400);
+  const hours = Math.floor((seconds % 86400) / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
+  const secs = seconds % 60;
+  
+  if (days > 0) {
+    return `${days}j ${hours}h ${minutes}m`;
+  } else if (hours > 0) {
+    return `${hours}h ${minutes}m ${secs}s`;
+  } else if (minutes > 0) {
+    return `${minutes}m ${secs}s`;
+  } else {
+    return `${secs}s`;
+  }
+};
+
 function App() {
   const [serverStatus, setServerStatus] = useState({ server: 'loading', container: 'loading' });
   const [stats, setStats] = useState({ cpu: '0', memory: { used: '0', limit: '0', percent: '0' } });
@@ -247,8 +265,8 @@ function App() {
                   <span className="font-semibold text-slate-700">Uptime</span>
                 </div>
                 <p className="text-lg font-bold text-slate-800">
-                  {serverStatus.uptime ? new Date(serverStatus.uptime).toLocaleString('fr-FR') : 'N/A'}
-                </p>
+				  {serverStatus.uptime ? formatUptime(serverStatus.uptime) : 'N/A'}
+				</p>
               </div>
             </div>
           )}
