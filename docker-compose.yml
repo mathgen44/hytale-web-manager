@@ -1,19 +1,22 @@
 services:
   # Serveur Hytale avec wrapper de contrôle
   hytale-server:
-    build:
-      context: ./hytale-server-wrapper
-      dockerfile: Dockerfile
+  build:
+    context: ./hytale-server-wrapper
+    dockerfile: Dockerfile
     container_name: hytale-server
     restart: unless-stopped
-    stdin_open: true
-    tty: true
+    stdin_open: true    # ← AJOUTER (pour docker attach)
+    tty: true           # ← AJOUTER
     ports:
       - "5520:5520/udp"
     volumes:
       - ./data:/data
+      - ./data/tokens:/server/.hytale/tokens           # ← AJOUTER
+      - /etc/machine-id:/etc/machine-id:ro             # ← AJOUTER
     environment:
       - MEMORY=${MEMORY:-4G}
+      - HYA_UUID=123e4567-e89b-12d3-a456-426614174000  # ← AJOUTER
       - INIT_MEMORY=${INIT_MEMORY:-}
       - MAX_MEMORY=${MAX_MEMORY:-}
       - SERVER_PORT=${SERVER_PORT:-5520}
