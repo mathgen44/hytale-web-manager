@@ -70,7 +70,7 @@ start_server() {
     
     # Démarrage du serveur en arrière-plan
     cd /data
-    java $JVM_ARGS -jar "$SERVER_JAR" $SERVER_ARGS > /tmp/server.log 2>&1 &
+    java $JVM_ARGS -jar "$SERVER_JAR" $SERVER_ARGS 2>&1 &
     local server_pid=$!
     
     # Attendre un peu pour vérifier que le serveur démarre bien
