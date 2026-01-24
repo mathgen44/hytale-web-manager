@@ -77,7 +77,7 @@ router.get('/logs', async (req, res) => {
 // GET /api/server/version - Obtenir la version du serveur
 router.get('/version', async (req, res) => {
   try {
-    const logs = await dockerService.getLogs(200);
+    const logs = await dockerService.getLogs(2000);
     
     // DEBUG : Voir ce qu'on reçoit vraiment
     console.log('=== DEBUG LOGS ===');
