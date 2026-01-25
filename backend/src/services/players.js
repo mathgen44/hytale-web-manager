@@ -11,7 +11,7 @@ class PlayersService {
 
     // Regex pour détecter les connexions/déconnexions (format Hytale réel)
     const joinPattern = /Player '([^']+)' joined world/i;
-    // Deux formats de déconnexion détectés
+    // Deux formats de déconnexion détectés dans les logs
     const leavePattern1 = /Removing player '([^']+)' \(/i;  // Format: Removing player 'Mathgen' (uuid)
     const leavePattern2 = /Removing player '([^']+) \([^)]+\)' from world/i;  // Format: Removing player 'Mathgen (Mathgen)' from world
 
@@ -55,7 +55,7 @@ class PlayersService {
 
   async getConnectedPlayers() {
     try {
-      // Récupérer les logs récents
+      // Récupérer les logs récents (beaucoup de lignes pour capturer toutes les connexions)
       const logs = await dockerService.getLogs(3000);
       
       // Parser les logs pour extraire les joueurs

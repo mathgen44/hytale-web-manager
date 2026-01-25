@@ -34,7 +34,7 @@ class DockerService {
     if (found) {
       this.container = this.docker.getContainer(found.Id);
       this.initialized = true;
-      this.lastInit = now;  // ← AJOUTER
+      this.lastInit = now;
       console.log('✅ Conteneur Hytale trouvé:', found.Names[0]);
     }
   } catch (error) {
@@ -158,10 +158,10 @@ async getServerStatus() {
       // Construction de la commande
       let cmd;
       if (isGameCommand) {
-        // Commande de jeu (à implémenter si nécessaire)
-        cmd = ['sh', '-c', `echo "/command ${command}" >> /tmp/server-commands`];
+        // Commande de jeu via le pipe nommé
+        cmd = ['sh', '-c', `/send-command.sh "${command}"`];
       } else {
-        // Commande de contrôle
+        // Commande de contrôle (start/stop/restart/status)
         cmd = ['sh', '-c', `/control-server.sh "${command}"`];
       }
 

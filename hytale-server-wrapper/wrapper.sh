@@ -68,21 +68,36 @@ start_server() {
     # Arguments du serveur
     SERVER_ARGS="--assets /data/Assets.zip"
     
-    # Démarrage du serveur en arrière-plan
+    # Créer le pipe d'input pour les commandes (avec PID unique)
+    INPUT_PIPE="/tmp/hytale_input_$$"
+    mkfifo "$INPUT_PIPE"
+    log_info "Pipe d'entrée créé: $INPUT_PIPE"
+    
+    # Démarrage du serveur en arrière-plan avec redirection du pipe vers stdin
     cd /data
-    java $JVM_ARGS -jar "$SERVER_JAR" $SERVER_ARGS 2>&1 &
+    java $JVM_ARGS -jar "$SERVER_JAR" $SERVER_ARGS < "$INPUT_PIPE" 2>&1 &
     local server_pid=$!
+    
+    # Garder le pipe ouvert avec tail -f en arrière-plan
+    # Cela évite que le pipe se ferme prématurément
+    tail -f /dev/null > "$INPUT_PIPE" &
+    local tail_pid=$!
     
     # Attendre un peu pour vérifier que le serveur démarre bien
     sleep 2
     
     if kill -0 "$server_pid" 2>/dev/null; then
         echo "$server_pid" > "$SERVER_PID_FILE"
+        echo "$INPUT_PIPE" > "/tmp/hytale-input-pipe.path"
         update_status "running" "$server_pid"
         log_info "Serveur démarré avec le PID: $server_pid"
+        log_info "Pipe d'entrée disponible: $INPUT_PIPE"
         return 0
     else
         log_error "Le serveur n'a pas pu démarrer"
+        # Nettoyer le pipe
+        kill $tail_pid 2>/dev/null || true
+        rm -f "$INPUT_PIPE"
         update_status "stopped" "0"
         return 1
     fi
@@ -107,8 +122,18 @@ stop_server() {
     
     log_info "Arrêt du serveur Hytale (PID: $pid)..."
     
-    # Envoi de SIGTERM
-    kill -TERM "$pid" 2>/dev/null || true
+    # Trouver et envoyer la commande /stop via le pipe
+    INPUT_PIPE=$(cat /tmp/hytale-input-pipe.path 2>/dev/null)
+    if [ -n "$INPUT_PIPE" ] && [ -p "$INPUT_PIPE" ]; then
+        log_info "Envoi de la commande /stop via le pipe..."
+        echo "/stop" > "$INPUT_PIPE" 2>/dev/null || true
+        sleep 3
+    fi
+    
+    # Envoi de SIGTERM si le serveur tourne encore
+    if kill -0 "$pid" 2>/dev/null; then
+        kill -TERM "$pid" 2>/dev/null || true
+    fi
     
     # Attendre que le serveur s'arrête (max 30 secondes)
     local count=0
@@ -124,7 +149,13 @@ stop_server() {
         sleep 1
     fi
     
+    # Nettoyer les fichiers
     rm -f "$SERVER_PID_FILE"
+    rm -f "/tmp/hytale-input-pipe.path"
+    if [ -n "$INPUT_PIPE" ] && [ -p "$INPUT_PIPE" ]; then
+        rm -f "$INPUT_PIPE"
+    fi
+    
     update_status "stopped" "0"
     log_info "Serveur arrêté"
     return 0
@@ -195,6 +226,7 @@ monitor_server() {
             if ! kill -0 "$pid" 2>/dev/null; then
                 log_warn "Le serveur s'est arrêté de manière inattendue"
                 rm -f "$SERVER_PID_FILE"
+                rm -f "/tmp/hytale-input-pipe.path"
                 update_status "stopped" "0"
             else
                 update_status "running" "$pid"
@@ -217,7 +249,7 @@ trap cleanup SIGTERM SIGINT
 # Point d'entrée principal
 main() {
     log_info "=== Hytale Server Wrapper ==="
-    log_info "Version: 1.0.1"
+    log_info "Version: 1.0.2 (avec support named pipe)"
     
     # Vérifier que le fichier JAR existe
     if [ ! -f "$SERVER_JAR" ]; then
