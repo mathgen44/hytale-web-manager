@@ -5,7 +5,8 @@ WORKDIR /app
 # Copier les fichiers de dépendances
 COPY package*.json ./
 
-# Installer les dépendances (utiliser install au lieu de ci)
+# IMPORTANT: Utiliser "npm install" au lieu de "npm ci"
+# Cela installe toutes les dépendances y compris multer
 RUN npm install --omit=dev
 
 # Copier le code source
