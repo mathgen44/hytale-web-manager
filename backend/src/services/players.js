@@ -10,8 +10,8 @@ class PlayersService {
     const players = new Map();
 
     // Regex pour détecter les connexions/déconnexions
-    const joinPattern = /Player joined:\s+(\w+)/i;
-    const leavePattern = /Player left:\s+(\w+)/i;
+    const joinPattern = /Player '([^']+)' joined world/i;
+	const leavePattern = /Player '([^']+)' left world/i;
     const listPattern = /Players online:\s+\[([^\]]+)\]/i;
 
     for (const line of lines) {
