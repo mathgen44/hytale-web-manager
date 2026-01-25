@@ -471,28 +471,32 @@ function App() {
                       </div>
                     </div>
                     <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-                      <button
-                        onClick={() => handlePlayerAction(player.name, 'op')}
-                        className="px-3 py-1.5 bg-green-600 text-white text-xs rounded-lg hover:bg-green-700 transition-colors duration-200"
-                        title="Promouvoir OP"
-                      >
-                        OP
-                      </button>
-                      <button
-                        onClick={() => handlePlayerAction(player.name, 'kick')}
-                        className="px-3 py-1.5 bg-yellow-600 text-white text-xs rounded-lg hover:bg-yellow-700 transition-colors duration-200"
-                        title="Expulser"
-                      >
-                        Kick
-                      </button>
-                      <button
-                        onClick={() => handlePlayerAction(player.name, 'ban')}
-                        className="px-3 py-1.5 bg-red-600 text-white text-xs rounded-lg hover:bg-red-700 transition-colors duration-200"
-                        title="Bannir"
-                      >
-                        Ban
-                      </button>
-                    </div>
+					  <button
+						onClick={() => handlePlayerAction(player.name, player.isOp ? 'deop' : 'op')}
+						className={`px-3 py-1.5 text-white text-xs rounded-lg transition-all duration-200 ${
+						  player.isOp 
+							? 'bg-blue-600 hover:bg-blue-700 ring-2 ring-blue-400' 
+							: 'bg-green-600 hover:bg-green-700'
+						}`}
+						title={player.isOp ? "Retirer OP" : "Promouvoir OP"}
+					  >
+						{player.isOp ? '✓ OP' : 'OP'}
+					  </button>
+					  <button
+						onClick={() => handlePlayerAction(player.name, 'kick')}
+						className="px-3 py-1.5 bg-yellow-600 text-white text-xs rounded-lg hover:bg-yellow-700 transition-colors duration-200"
+						title="Expulser"
+					  >
+						Kick
+					  </button>
+					  <button
+						onClick={() => handlePlayerAction(player.name, 'ban')}
+						className="px-3 py-1.5 bg-red-600 text-white text-xs rounded-lg hover:bg-red-700 transition-colors duration-200"
+						title="Bannir"
+					  >
+						Ban
+					  </button>
+					</div>
                   </div>
                 ))
               )}

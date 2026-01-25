@@ -3,6 +3,7 @@ import dockerService from './docker.js';
 class PlayersService {
   constructor() {
     this.connectedPlayers = new Map();
+    this.opPlayers = new Set(); // Track des joueurs OP
   }
 
   parseLogsForPlayers(logs) {
@@ -14,6 +15,10 @@ class PlayersService {
     // Deux formats de déconnexion détectés dans les logs
     const leavePattern1 = /Removing player '([^']+)' \(/i;  // Format: Removing player 'Mathgen' (uuid)
     const leavePattern2 = /Removing player '([^']+) \([^)]+\)' from world/i;  // Format: Removing player 'Mathgen (Mathgen)' from world
+    
+    // Regex pour détecter les OPs
+    const opAddPattern = /Added '([^']+)' to operators/i;
+    const opRemovePattern = /Removed '([^']+)' from operators/i;
 
     for (const line of lines) {
       // Détection de connexion
@@ -23,7 +28,8 @@ class PlayersService {
         players.set(playerName, {
           name: playerName,
           connected: true,
-          joinedAt: this.extractTimestamp(line)
+          joinedAt: this.extractTimestamp(line),
+          isOp: this.opPlayers.has(playerName) // Ajouter le statut OP
         });
         continue;
       }
@@ -41,6 +47,30 @@ class PlayersService {
       if (leaveMatch2) {
         const playerName = leaveMatch2[1].trim();
         players.delete(playerName);
+        continue;
+      }
+      
+      // Détection de promotion OP
+      const opAddMatch = line.match(opAddPattern);
+      if (opAddMatch) {
+        const playerName = opAddMatch[1];
+        this.opPlayers.add(playerName);
+        // Mettre à jour le joueur si connecté
+        if (players.has(playerName)) {
+          players.get(playerName).isOp = true;
+        }
+        continue;
+      }
+      
+      // Détection de retrait OP
+      const opRemoveMatch = line.match(opRemovePattern);
+      if (opRemoveMatch) {
+        const playerName = opRemoveMatch[1];
+        this.opPlayers.delete(playerName);
+        // Mettre à jour le joueur si connecté
+        if (players.has(playerName)) {
+          players.get(playerName).isOp = false;
+        }
       }
     }
 
@@ -103,6 +133,7 @@ class PlayersService {
   async opPlayer(playerName) {
     try {
       await dockerService.executeCommand(`op add ${playerName}`);
+      this.opPlayers.add(playerName); // Ajouter au tracking
       return { success: true, message: `Joueur ${playerName} promu opérateur` };
     } catch (error) {
       throw new Error(`Erreur lors de la promotion: ${error.message}`);
@@ -112,6 +143,7 @@ class PlayersService {
   async deopPlayer(playerName) {
     try {
       await dockerService.executeCommand(`op remove ${playerName}`);
+      this.opPlayers.delete(playerName); // Retirer du tracking
       return { success: true, message: `Privilèges retirés à ${playerName}` };
     } catch (error) {
       throw new Error(`Erreur lors du retrait des privilèges: ${error.message}`);
