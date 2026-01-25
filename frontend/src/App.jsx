@@ -2,10 +2,11 @@ import React, { useState, useEffect, useRef } from 'react';
 import { 
   Play, Square, RotateCw, Users, Terminal, Activity, HardDrive, 
   Cpu, Clock, Settings, Moon, Sun, Download, Upload, 
-  AlertCircle, CheckCircle, XCircle, TrendingUp, Zap
+  AlertCircle, CheckCircle, XCircle, TrendingUp, Zap,
+  Package, Trash2, Power, PowerOff, RefreshCw, AlertTriangle, ExternalLink
 } from 'lucide-react';
 
-// CORRECTION: Utiliser des URLs relatives comme dans l'ancien code
+// CORRECTION: Utiliser des URLs relatives
 const API_URL = '';  // URL relative
 const WS_URL = `ws://${window.location.host}`;
 
@@ -99,6 +100,12 @@ function App() {
   const [autoScroll, setAutoScroll] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   
+  // 🆕 États pour la gestion des mods
+  const [mods, setMods] = useState([]);
+  const [modsLoading, setModsLoading] = useState(false);
+  const [uploadingMod, setUploadingMod] = useState(false);
+  const [selectedFile, setSelectedFile] = useState(null);
+  
   const logsEndRef = useRef(null);
   const wsRef = useRef(null);
   const commandInputRef = useRef(null);
@@ -122,7 +129,194 @@ function App() {
     setToast({ message, type });
   };
 
-  // WebSocket pour les logs - CORRECTION: utiliser WS_URL correct
+  // 🆕 Fonction pour récupérer les mods
+  const fetchMods = async () => {
+    try {
+      const res = await fetch(`${API_URL}/api/mods`);
+      const data = await res.json();
+      setMods(data.mods || []);
+    } catch (error) {
+      console.error('Erreur récupération mods:', error);
+    }
+  };
+
+  // 🆕 Handler pour l'upload de mod
+  const handleModUpload = async (e) => {
+    e.preventDefault();
+    if (!selectedFile) {
+      showToast('Veuillez sélectionner un fichier .jar', 'warning');
+      return;
+    }
+
+    setUploadingMod(true);
+    const formData = new FormData();
+    formData.append('mod', selectedFile);
+
+    try {
+      const res = await fetch(`${API_URL}/api/mods/upload`, {
+        method: 'POST',
+        body: formData
+      });
+
+      const data = await res.json();
+      
+      if (!res.ok) throw new Error(data.error);
+
+      showToast(data.message, 'success');
+      setSelectedFile(null);
+      
+      const fileInput = document.getElementById('mod-file-input');
+      if (fileInput) fileInput.value = '';
+
+      await fetchMods();
+    } catch (error) {
+      showToast(`Erreur: ${error.message}`, 'error');
+    } finally {
+      setUploadingMod(false);
+    }
+  };
+
+  // 🆕 Handler pour activer/désactiver un mod
+  const handleToggleMod = async (filename, currentlyEnabled) => {
+    try {
+      const action = currentlyEnabled ? 'disable' : 'enable';
+      const res = await fetch(`${API_URL}/api/mods/${filename}/${action}`, {
+        method: 'POST'
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+
+      showToast(data.message, 'success');
+      
+      if (data.requiresRestart) {
+        showToast('Redémarrage du serveur recommandé', 'warning');
+      }
+
+      await fetchMods();
+    } catch (error) {
+      showToast(`Erreur: ${error.message}`, 'error');
+    }
+  };
+
+  // 🆕 Handler pour supprimer un mod
+  const handleDeleteMod = async (filename) => {
+    if (!window.confirm(`Êtes-vous sûr de vouloir supprimer ${filename} ?`)) {
+      return;
+    }
+
+    try {
+      const res = await fetch(`${API_URL}/api/mods/${filename}`, {
+        method: 'DELETE'
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+
+      showToast(data.message, 'success');
+      await fetchMods();
+    } catch (error) {
+      showToast(`Erreur: ${error.message}`, 'error');
+    }
+  };
+
+  // 🆕 Handler pour rafraîchir les mods
+  const handleRefreshMods = async () => {
+    setModsLoading(true);
+    try {
+      const res = await fetch(`${API_URL}/api/mods/scan`, {
+        method: 'POST'
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+
+      showToast(data.message, 'success');
+      setMods(data.mods || []);
+    } catch (error) {
+      showToast(`Erreur: ${error.message}`, 'error');
+    } finally {
+      setModsLoading(false);
+    }
+  };
+
+  // 🆕 Composant ModCard
+  const ModCard = ({ mod }) => (
+    <div className="bg-slate-700 p-5 rounded-lg hover:bg-slate-650 transition-all duration-200 group">
+      <div className="flex items-start justify-between mb-3">
+        <div className="flex items-center gap-3 flex-1">
+          <div className={`p-3 rounded-lg ${mod.enabled ? 'bg-green-500' : 'bg-slate-600'} bg-opacity-20`}>
+            <Package className={`w-6 h-6 ${mod.enabled ? 'text-green-400' : 'text-slate-400'}`} />
+          </div>
+          <div className="flex-1">
+            <div className="flex items-center gap-2 mb-1">
+              <h3 className="font-bold text-white text-lg">{mod.displayName}</h3>
+              {mod.enabled ? (
+                <span className="px-2 py-0.5 bg-green-500 bg-opacity-20 text-green-400 text-xs rounded-full">
+                  Actif
+                </span>
+              ) : (
+                <span className="px-2 py-0.5 bg-slate-600 text-slate-400 text-xs rounded-full">
+                  Inactif
+                </span>
+              )}
+            </div>
+            <div className="flex items-center gap-4 text-xs text-slate-400">
+              <span>📦 {mod.sizeFormatted}</span>
+              <span>📅 {new Date(mod.lastModified).toLocaleDateString('fr-FR')}</span>
+              <span className="px-2 py-0.5 bg-purple-500 bg-opacity-20 text-purple-400 rounded">
+                {mod.type}
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="flex gap-2 mt-3">
+        <button
+          onClick={() => handleToggleMod(mod.filename, mod.enabled)}
+          className={`flex-1 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
+            mod.enabled 
+              ? 'bg-yellow-600 hover:bg-yellow-700 text-white' 
+              : 'bg-green-600 hover:bg-green-700 text-white'
+          }`}
+          title={mod.enabled ? "Désactiver" : "Activer"}
+        >
+          {mod.enabled ? (
+            <>
+              <PowerOff className="w-4 h-4 inline mr-1" />
+              Désactiver
+            </>
+          ) : (
+            <>
+              <Power className="w-4 h-4 inline mr-1" />
+              Activer
+            </>
+          )}
+        </button>
+
+        <button
+          onClick={() => handleDeleteMod(mod.filename)}
+          className="px-3 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-sm font-medium transition-all duration-200"
+          title="Supprimer"
+        >
+          <Trash2 className="w-4 h-4" />
+        </button>
+
+        <a
+          href={`https://www.curseforge.com/hytale/search?page=1&pageSize=20&sortBy=relevancy&search=${encodeURIComponent(mod.displayName)}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition-all duration-200"
+          title="Voir sur CurseForge"
+        >
+          <ExternalLink className="w-4 h-4" />
+        </a>
+      </div>
+    </div>
+  );
+
+  // WebSocket pour les logs
   useEffect(() => {
     const connectWebSocket = () => {
       const ws = new WebSocket(`${WS_URL}/ws/logs`);
@@ -221,6 +415,13 @@ function App() {
       return () => clearInterval(interval);
     }
   }, [serverStatus.server]);
+
+  // 🆕 Charger les mods au démarrage
+  useEffect(() => {
+    fetchMods();
+    const interval = setInterval(fetchMods, 30000); // Refresh toutes les 30s
+    return () => clearInterval(interval);
+  }, []);
 
   const handleServerAction = async (action) => {
     setLoading({ ...loading, [action]: true });
@@ -431,7 +632,7 @@ function App() {
           )}
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
           {/* Joueurs */}
           <div className="bg-slate-800 p-6 rounded-xl border border-slate-700 shadow-xl">
             <div className="flex items-center justify-between mb-6">
@@ -471,32 +672,32 @@ function App() {
                       </div>
                     </div>
                     <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-					  <button
-						onClick={() => handlePlayerAction(player.name, player.isOp ? 'deop' : 'op')}
-						className={`px-3 py-1.5 text-white text-xs rounded-lg transition-all duration-200 ${
-						  player.isOp 
-							? 'bg-blue-600 hover:bg-blue-700 ring-2 ring-blue-400' 
-							: 'bg-green-600 hover:bg-green-700'
-						}`}
-						title={player.isOp ? "Retirer OP" : "Promouvoir OP"}
-					  >
-						{player.isOp ? '✓ OP' : 'OP'}
-					  </button>
-					  <button
-						onClick={() => handlePlayerAction(player.name, 'kick')}
-						className="px-3 py-1.5 bg-yellow-600 text-white text-xs rounded-lg hover:bg-yellow-700 transition-colors duration-200"
-						title="Expulser"
-					  >
-						Kick
-					  </button>
-					  <button
-						onClick={() => handlePlayerAction(player.name, 'ban')}
-						className="px-3 py-1.5 bg-red-600 text-white text-xs rounded-lg hover:bg-red-700 transition-colors duration-200"
-						title="Bannir"
-					  >
-						Ban
-					  </button>
-					</div>
+                      <button
+                        onClick={() => handlePlayerAction(player.name, player.isOp ? 'deop' : 'op')}
+                        className={`px-3 py-1.5 text-white text-xs rounded-lg transition-all duration-200 ${
+                          player.isOp 
+                            ? 'bg-blue-600 hover:bg-blue-700 ring-2 ring-blue-400' 
+                            : 'bg-green-600 hover:bg-green-700'
+                        }`}
+                        title={player.isOp ? "Retirer OP" : "Promouvoir OP"}
+                      >
+                        {player.isOp ? '✓ OP' : 'OP'}
+                      </button>
+                      <button
+                        onClick={() => handlePlayerAction(player.name, 'kick')}
+                        className="px-3 py-1.5 bg-yellow-600 text-white text-xs rounded-lg hover:bg-yellow-700 transition-colors duration-200"
+                        title="Expulser"
+                      >
+                        Kick
+                      </button>
+                      <button
+                        onClick={() => handlePlayerAction(player.name, 'ban')}
+                        className="px-3 py-1.5 bg-red-600 text-white text-xs rounded-lg hover:bg-red-700 transition-colors duration-200"
+                        title="Bannir"
+                      >
+                        Ban
+                      </button>
+                    </div>
                   </div>
                 ))
               )}
@@ -586,6 +787,102 @@ function App() {
             <p className="text-slate-500 text-xs mt-2">
               Utilisez les flèches ↑↓ pour naviguer dans l'historique des commandes
             </p>
+          </div>
+        </div>
+
+        {/* 🆕 Section Gestionnaire de Mods */}
+        <div className="bg-slate-800 p-6 rounded-xl border border-slate-700 shadow-xl mb-6">
+          <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center gap-3">
+              <div className="p-3 rounded-lg bg-purple-500 bg-opacity-20">
+                <Package className="w-6 h-6 text-purple-400" />
+              </div>
+              <div>
+                <h2 className="text-xl font-bold text-white">Gestionnaire de Mods</h2>
+                <p className="text-slate-400 text-sm">{mods.length} mod{mods.length > 1 ? 's' : ''} installé{mods.length > 1 ? 's' : ''}</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={handleRefreshMods}
+                disabled={modsLoading}
+                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition-all duration-200 flex items-center gap-2 disabled:opacity-50"
+              >
+                <RefreshCw className={`w-4 h-4 ${modsLoading ? 'animate-spin' : ''}`} />
+                Rafraîchir
+              </button>
+              <a
+                href="https://www.curseforge.com/hytale/mods"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded-lg text-sm font-medium transition-all duration-200 flex items-center gap-2"
+              >
+                <ExternalLink className="w-4 h-4" />
+                CurseForge
+              </a>
+            </div>
+          </div>
+
+          {/* Upload Form */}
+          <form onSubmit={handleModUpload} className="mb-6 p-4 bg-slate-700 rounded-lg border-2 border-dashed border-slate-600 hover:border-blue-500 transition-colors duration-200">
+            <div className="flex flex-col md:flex-row items-center gap-4">
+              <div className="flex-1 w-full">
+                <label htmlFor="mod-file-input" className="block text-slate-300 text-sm font-medium mb-2">
+                  <Upload className="w-4 h-4 inline mr-2" />
+                  Sélectionner un fichier .jar
+                </label>
+                <input
+                  id="mod-file-input"
+                  type="file"
+                  accept=".jar"
+                  onChange={(e) => setSelectedFile(e.target.files[0])}
+                  className="w-full px-4 py-2 bg-slate-600 text-white rounded-lg border border-slate-500 focus:outline-none focus:border-blue-500 text-sm"
+                  disabled={uploadingMod}
+                />
+                {selectedFile && (
+                  <p className="text-slate-400 text-xs mt-2">
+                    📦 {selectedFile.name} ({(selectedFile.size / 1024 / 1024).toFixed(2)} MB)
+                  </p>
+                )}
+              </div>
+              <button
+                type="submit"
+                disabled={!selectedFile || uploadingMod}
+                className="px-6 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+              >
+                {uploadingMod ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    Upload...
+                  </>
+                ) : (
+                  <>
+                    <Upload className="w-4 h-4" />
+                    Upload
+                  </>
+                )}
+              </button>
+            </div>
+            <div className="mt-3 flex items-start gap-2 text-xs text-slate-400">
+              <AlertTriangle className="w-4 h-4 text-yellow-500 flex-shrink-0 mt-0.5" />
+              <p>
+                Téléchargez uniquement des mods depuis <strong className="text-orange-400">CurseForge</strong> ou des sources fiables. 
+                Un redémarrage du serveur est nécessaire après l'installation.
+              </p>
+            </div>
+          </form>
+
+          {/* Mods List */}
+          <div className="space-y-3 max-h-96 overflow-y-auto custom-scrollbar">
+            {mods.length === 0 ? (
+              <div className="text-center py-12">
+                <Package className="w-16 h-16 text-slate-600 mx-auto mb-3" />
+                <p className="text-slate-400 mb-2">Aucun mod installé</p>
+                <p className="text-slate-500 text-sm">Uploadez un fichier .jar pour commencer</p>
+              </div>
+            ) : (
+              mods.map((mod) => <ModCard key={mod.filename} mod={mod} />)
+            )}
           </div>
         </div>
       </div>
