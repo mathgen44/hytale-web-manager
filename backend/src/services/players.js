@@ -75,7 +75,7 @@ class PlayersService {
 
   async kickPlayer(playerName) {
     try {
-      await dockerService.executeCommand(`/kick ${playerName}`);
+      await dockerService.executeCommand(`kick ${playerName}`);
       return { success: true, message: `Joueur ${playerName} expulsé` };
     } catch (error) {
       throw new Error(`Erreur lors de l'expulsion: ${error.message}`);
@@ -84,7 +84,7 @@ class PlayersService {
 
   async banPlayer(playerName) {
     try {
-      await dockerService.executeCommand(`/ban ${playerName}`);
+      await dockerService.executeCommand(`ban ${playerName}`);
       return { success: true, message: `Joueur ${playerName} banni` };
     } catch (error) {
       throw new Error(`Erreur lors du bannissement: ${error.message}`);
@@ -93,16 +93,16 @@ class PlayersService {
 
   async pardonPlayer(playerName) {
     try {
-      await dockerService.executeCommand(`/pardon ${playerName}`);
-      return { success: true, message: `Joueur ${playerName} gracié` };
+      await dockerService.executeCommand(`unban ${playerName}`);
+      return { success: true, message: `Joueur ${playerName} débanni` };
     } catch (error) {
-      throw new Error(`Erreur lors de la grâce: ${error.message}`);
+      throw new Error(`Erreur lors du débannissement: ${error.message}`);
     }
   }
 
   async opPlayer(playerName) {
     try {
-      await dockerService.executeCommand(`/op ${playerName}`);
+      await dockerService.executeCommand(`op add ${playerName}`);
       return { success: true, message: `Joueur ${playerName} promu opérateur` };
     } catch (error) {
       throw new Error(`Erreur lors de la promotion: ${error.message}`);
@@ -111,7 +111,7 @@ class PlayersService {
 
   async deopPlayer(playerName) {
     try {
-      await dockerService.executeCommand(`/deop ${playerName}`);
+      await dockerService.executeCommand(`op remove ${playerName}`);
       return { success: true, message: `Privilèges retirés à ${playerName}` };
     } catch (error) {
       throw new Error(`Erreur lors du retrait des privilèges: ${error.message}`);
