@@ -6,36 +6,46 @@ class PlayersService {
   }
 
   parseLogsForPlayers(logs) {
-  const lines = logs.split('\n');
-  const players = new Map();
+    const lines = logs.split('\n');
+    const players = new Map();
 
-  // Regex pour détecter les connexions/déconnexions (format Hytale réel)
-  const joinPattern = /Player '([^']+)' joined world/i;
-  const leavePattern = /Player '([^']+)' left world/i;
+    // Regex pour détecter les connexions/déconnexions (format Hytale réel)
+    const joinPattern = /Player '([^']+)' joined world/i;
+    // Deux formats de déconnexion détectés
+    const leavePattern1 = /Removing player '([^']+)' \(/i;  // Format: Removing player 'Mathgen' (uuid)
+    const leavePattern2 = /Removing player '([^']+) \([^)]+\)' from world/i;  // Format: Removing player 'Mathgen (Mathgen)' from world
 
-  for (const line of lines) {
-    // Détection de connexion
-    const joinMatch = line.match(joinPattern);
-    if (joinMatch) {
-      const playerName = joinMatch[1];
-      players.set(playerName, {
-        name: playerName,
-        connected: true,
-        joinedAt: this.extractTimestamp(line)
-      });
-      continue;
+    for (const line of lines) {
+      // Détection de connexion
+      const joinMatch = line.match(joinPattern);
+      if (joinMatch) {
+        const playerName = joinMatch[1];
+        players.set(playerName, {
+          name: playerName,
+          connected: true,
+          joinedAt: this.extractTimestamp(line)
+        });
+        continue;
+      }
+
+      // Détection de déconnexion (format 1)
+      const leaveMatch1 = line.match(leavePattern1);
+      if (leaveMatch1) {
+        const playerName = leaveMatch1[1].trim();
+        players.delete(playerName);
+        continue;
+      }
+
+      // Détection de déconnexion (format 2)
+      const leaveMatch2 = line.match(leavePattern2);
+      if (leaveMatch2) {
+        const playerName = leaveMatch2[1].trim();
+        players.delete(playerName);
+      }
     }
 
-    // Détection de déconnexion
-    const leaveMatch = line.match(leavePattern);
-    if (leaveMatch) {
-      const playerName = leaveMatch[1];
-      players.delete(playerName);
-    }
+    return Array.from(players.values());
   }
-
-  return Array.from(players.values());
-}
 
   extractTimestamp(line) {
     // Format: 2024-01-23T10:30:45.123456Z [INFO] ...
