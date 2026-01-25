@@ -6,54 +6,36 @@ class PlayersService {
   }
 
   parseLogsForPlayers(logs) {
-    const lines = logs.split('\n');
-    const players = new Map();
+  const lines = logs.split('\n');
+  const players = new Map();
 
-    // Regex pour détecter les connexions/déconnexions
-    const joinPattern = /Player '([^']+)' joined world/i;
-	const leavePattern = /Player '([^']+)' left world/i;
-    const listPattern = /Players online:\s+\[([^\]]+)\]/i;
+  // Regex pour détecter les connexions/déconnexions (format Hytale réel)
+  const joinPattern = /Player '([^']+)' joined world/i;
+  const leavePattern = /Player '([^']+)' left world/i;
 
-    for (const line of lines) {
-      // Détection de connexion
-      const joinMatch = line.match(joinPattern);
-      if (joinMatch) {
-        const playerName = joinMatch[1];
-        players.set(playerName, {
-          name: playerName,
-          connected: true,
-          joinedAt: this.extractTimestamp(line)
-        });
-      }
-
-      // Détection de déconnexion
-      const leaveMatch = line.match(leavePattern);
-      if (leaveMatch) {
-        const playerName = leaveMatch[1];
-        if (players.has(playerName)) {
-          players.delete(playerName);
-        }
-      }
-
-      // Détection de la liste de joueurs
-      const listMatch = line.match(listPattern);
-      if (listMatch) {
-        const playersList = listMatch[1].split(',').map(p => p.trim());
-        players.clear();
-        playersList.forEach(name => {
-          if (name) {
-            players.set(name, {
-              name,
-              connected: true,
-              joinedAt: this.extractTimestamp(line)
-            });
-          }
-        });
-      }
+  for (const line of lines) {
+    // Détection de connexion
+    const joinMatch = line.match(joinPattern);
+    if (joinMatch) {
+      const playerName = joinMatch[1];
+      players.set(playerName, {
+        name: playerName,
+        connected: true,
+        joinedAt: this.extractTimestamp(line)
+      });
+      continue;
     }
 
-    return Array.from(players.values());
+    // Détection de déconnexion
+    const leaveMatch = line.match(leavePattern);
+    if (leaveMatch) {
+      const playerName = leaveMatch[1];
+      players.delete(playerName);
+    }
   }
+
+  return Array.from(players.values());
+}
 
   extractTimestamp(line) {
     // Format: 2024-01-23T10:30:45.123456Z [INFO] ...
