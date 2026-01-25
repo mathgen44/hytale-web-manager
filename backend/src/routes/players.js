@@ -1,137 +1,66 @@
-import dockerService from './docker.js';
+import express from 'express';
+import playersService from '../services/players.js';
 
-class PlayersService {
-  constructor() {
-    this.connectedPlayers = new Map();
+const router = express.Router();
+
+// GET /api/players - Obtenir la liste des joueurs connectés
+router.get('/', async (req, res) => {
+  try {
+    const players = await playersService.getConnectedPlayers();
+    res.json({ players, count: players.length });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
   }
+});
 
-  parseLogsForPlayers(logs) {
-    const lines = logs.split('\n');
-    const players = new Map();
-
-    // Regex corrigées pour le format Hytale
-    // Format: Player 'Mathgen' joined world 'default' at location ...
-    const joinPattern = /Player '([^']+)' joined world/i;
-    
-    // Format: Player 'Mathgen' left world 'default'
-    const leavePattern = /Player '([^']+)' left world/i;
-    
-    // Format alternatif: Adding player 'Mathgen' to world
-    const addPlayerPattern = /Adding player '([^']+)' to world/i;
-
-    for (const line of lines) {
-      // Détection de connexion (format principal)
-      const joinMatch = line.match(joinPattern);
-      if (joinMatch) {
-        const playerName = joinMatch[1];
-        players.set(playerName, {
-          name: playerName,
-          connected: true,
-          joinedAt: this.extractTimestamp(line)
-        });
-        continue;
-      }
-
-      // Détection de connexion (format alternatif)
-      const addMatch = line.match(addPlayerPattern);
-      if (addMatch) {
-        const playerName = addMatch[1];
-        players.set(playerName, {
-          name: playerName,
-          connected: true,
-          joinedAt: this.extractTimestamp(line)
-        });
-        continue;
-      }
-
-      // Détection de déconnexion
-      const leaveMatch = line.match(leavePattern);
-      if (leaveMatch) {
-        const playerName = leaveMatch[1];
-        if (players.has(playerName)) {
-          players.delete(playerName);
-        }
-      }
-    }
-
-    return Array.from(players.values());
+// POST /api/players/:name/kick - Expulser un joueur
+router.post('/:name/kick', async (req, res) => {
+  try {
+    const result = await playersService.kickPlayer(req.params.name);
+    res.json(result);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
   }
+});
 
-  extractTimestamp(line) {
-    // Format Hytale: [2026/01/25 02:35:44   INFO]
-    const match = line.match(/\[(\d{4}\/\d{2}\/\d{2}\s+\d{2}:\d{2}:\d{2})/);
-    if (match) {
-      // Convertir le format Hytale en ISO
-      const dateStr = match[1].replace('/', '-').replace('/', '-').replace(' ', 'T');
-      return new Date(dateStr).toISOString();
-    }
-    return new Date().toISOString();
+// POST /api/players/:name/ban - Bannir un joueur
+router.post('/:name/ban', async (req, res) => {
+  try {
+    const result = await playersService.banPlayer(req.params.name);
+    res.json(result);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
   }
+});
 
-  async getConnectedPlayers() {
-    try {
-      // Récupérer plus de logs pour être sûr d'avoir les connexions
-      const logs = await dockerService.getLogs(1000);
-      
-      // Parser les logs pour extraire les joueurs
-      const players = this.parseLogsForPlayers(logs);
-      
-      // Mettre à jour le cache
-      this.connectedPlayers.clear();
-      players.forEach(player => {
-        this.connectedPlayers.set(player.name, player);
-      });
-
-      return players;
-    } catch (error) {
-      throw new Error(`Erreur lors de la récupération des joueurs: ${error.message}`);
-    }
+// POST /api/players/:name/pardon - Gracier un joueur
+router.post('/:name/pardon', async (req, res) => {
+  try {
+    const result = await playersService.pardonPlayer(req.params.name);
+    res.json(result);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
   }
+});
 
-  async kickPlayer(playerName) {
-    try {
-      await dockerService.executeCommand(`/kick ${playerName}`);
-      return { success: true, message: `Joueur ${playerName} expulsé` };
-    } catch (error) {
-      throw new Error(`Erreur lors de l'expulsion: ${error.message}`);
-    }
+// POST /api/players/:name/op - Promouvoir en opérateur
+router.post('/:name/op', async (req, res) => {
+  try {
+    const result = await playersService.opPlayer(req.params.name);
+    res.json(result);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
   }
+});
 
-  async banPlayer(playerName) {
-    try {
-      await dockerService.executeCommand(`/ban ${playerName}`);
-      return { success: true, message: `Joueur ${playerName} banni` };
-    } catch (error) {
-      throw new Error(`Erreur lors du bannissement: ${error.message}`);
-    }
+// POST /api/players/:name/deop - Retirer les privilèges d'opérateur
+router.post('/:name/deop', async (req, res) => {
+  try {
+    const result = await playersService.deopPlayer(req.params.name);
+    res.json(result);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
   }
+});
 
-  async pardonPlayer(playerName) {
-    try {
-      await dockerService.executeCommand(`/pardon ${playerName}`);
-      return { success: true, message: `Joueur ${playerName} gracié` };
-    } catch (error) {
-      throw new Error(`Erreur lors de la grâce: ${error.message}`);
-    }
-  }
-
-  async opPlayer(playerName) {
-    try {
-      await dockerService.executeCommand(`/op ${playerName}`);
-      return { success: true, message: `Joueur ${playerName} promu opérateur` };
-    } catch (error) {
-      throw new Error(`Erreur lors de la promotion: ${error.message}`);
-    }
-  }
-
-  async deopPlayer(playerName) {
-    try {
-      await dockerService.executeCommand(`/deop ${playerName}`);
-      return { success: true, message: `Privilèges retirés à ${playerName}` };
-    } catch (error) {
-      throw new Error(`Erreur lors du retrait des privilèges: ${error.message}`);
-    }
-  }
-}
-
-export default new PlayersService();
+export default router;
