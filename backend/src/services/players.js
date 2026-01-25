@@ -64,7 +64,7 @@ class PlayersService {
   async getConnectedPlayers() {
     try {
       // Récupérer les logs récents
-      const logs = await dockerService.getLogs(500);
+      const logs = await dockerService.getLogs(3000);
       
       // Parser les logs pour extraire les joueurs
       const players = this.parseLogsForPlayers(logs);
