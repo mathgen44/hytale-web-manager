@@ -298,6 +298,27 @@ async getServerStatus() {
       throw error;
     }
   }
+  
+  async getLogs(lines = 100) {
+    try {
+      const container = await this.getContainer();
+      if (!container) {
+        throw new Error('Conteneur non trouvé');
+      }
+
+      const logs = await container.logs({
+        stdout: true,
+        stderr: true,
+        tail: lines,
+        timestamps: true
+      });
+
+      return logs.toString('utf8');
+    } catch (error) {
+      console.error('❌ Erreur getLogs:', error.message);
+      throw error;
+    }
+  }
 
   async getContainerStats() {
     try {
