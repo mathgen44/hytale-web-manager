@@ -111,6 +111,26 @@ router.post('/update', async (req, res) => {
   }
 });
 
+// GET /api/server/oauth-url - Récupérer l'URL OAuth du downloader
+router.get('/oauth-url', async (req, res) => {
+  try {
+    const fs = await import('fs/promises');
+    
+    // Lire le fichier depuis le volume partagé
+    const url = await fs.readFile('/tmp/oauth-shared/oauth-url.txt', 'utf8')
+      .then(content => content.trim())
+      .catch(() => '');
+    
+    if (url && url.startsWith('https://oauth.accounts.hytale.com/')) {
+      res.json({ url, active: true });
+    } else {
+      res.json({ url: null, active: false });
+    }
+  } catch (error) {
+    res.json({ url: null, active: false });
+  }
+});
+
 // GET /api/server/logs - Récupérer les logs
 router.get('/logs', async (req, res) => {
   try {
