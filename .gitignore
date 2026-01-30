@@ -5,6 +5,7 @@ backup-hytale-data/
 # Fichiers de configuration avec données sensibles
 .env
 .env.local
+.env.dev
 
 # Node.js
 node_modules/
@@ -39,3 +40,8 @@ logs/
 tmp/
 temp/
 .tmp/
+
+# Backups (ne pas commiter les backups)
+backups/
+*.tar.gz
+backup-*/
