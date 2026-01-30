@@ -170,11 +170,11 @@ for i in $(seq 1 $OAUTH_TIMEOUT); do
         fi
     fi
     
-    # Vérifier si l'authentification est complète
-    if grep -q "Authentication successful\|Download complete" "$LOG_FILE" 2>/dev/null; then
+    # Vérifier si l'authentification est complète ou le téléchargement a démarré
+    if grep -q "successfully downloaded\|downloading latest\|Authentication successful" "$LOG_FILE" 2>/dev/null; then
         if [ "$OAUTH_DETECTED" = true ]; then
-            log_success "✅ Authentification réussie"
-            # Nettoyer le fichier OAuth
+            log_success "✅ Authentification réussie, téléchargement en cours"
+            # Nettoyer le fichier OAuth immédiatement
             rm -f "$OAUTH_FILE"
         fi
         log_info "Téléchargement en cours..."
