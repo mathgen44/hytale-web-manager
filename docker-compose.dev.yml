@@ -58,7 +58,7 @@ services:
   frontend-dev:
     build:
       context: ./frontend
-      dockerfile: Dockerfile
+      dockerfile: Dockerfile.dev
     container_name: hytale-manager-frontend-dev
     restart: unless-stopped
     ports:
