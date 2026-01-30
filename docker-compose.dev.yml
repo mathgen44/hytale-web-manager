@@ -1,0 +1,80 @@
+services:
+  # Serveur Hytale avec wrapper de contrôle
+  hytale-server-dev:
+    build:
+      context: ./hytale-server-wrapper
+      dockerfile: Dockerfile
+    container_name: hytale-server-dev
+    restart: unless-stopped
+    stdin_open: true
+    tty: true
+    ports:
+      - "5521:5520/udp"  # Port différent : 5521 au lieu de 5520
+    volumes:
+      - ./data-dev:/data  # Données séparées
+      - ./data-dev/tokens:/server/.hytale/tokens
+      - /etc/machine-id:/etc/machine-id:ro
+      - oauth-shared-dev:/tmp/oauth-shared
+    environment:
+      - MEMORY=${MEMORY:-4G}
+      - HYA_UUID=123e4567-e89b-12d3-a456-426614174001  # UUID différent
+      - INIT_MEMORY=${INIT_MEMORY:-}
+      - MAX_MEMORY=${MAX_MEMORY:-}
+      - SERVER_PORT=${SERVER_PORT:-5520}
+      - SERVER_HOST=${SERVER_HOST:-0.0.0.0}
+      - TZ=${TZ:-UTC}
+      - UID=${UID:-1000}
+      - GID=${GID:-1000}
+      - ENABLE_AOT=${ENABLE_AOT:-false}
+      - JVM_OPTS=${JVM_OPTS:-}
+      - EXTRA_ARGS=${EXTRA_ARGS:-}
+      - DEBUG=${DEBUG:-true}
+    networks:
+      - hytale-network-dev
+
+  # Backend API
+  backend-dev:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: hytale-manager-backend-dev
+    restart: unless-stopped
+    ports:
+      - "4001:4000"  # Port différent : 4001 au lieu de 4000
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - oauth-shared-dev:/tmp/oauth-shared
+    environment:
+      - PORT=4000
+      - HYTALE_CONTAINER_NAME=hytale-server-dev
+      - NODE_ENV=development
+      - DEBUG=true
+    depends_on:
+      - hytale-server-dev
+    networks:
+      - hytale-network-dev
+
+  # Frontend Web
+  frontend-dev:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: hytale-manager-frontend-dev
+    restart: unless-stopped
+    ports:
+      - "3001:80"  # Port différent : 3001 au lieu de 3000
+    environment:
+      - VITE_API_URL=http://localhost:4001
+      - VITE_WS_URL=ws://localhost:4001
+    depends_on:
+      - backend-dev
+    networks:
+      - hytale-network-dev
+
+networks:
+  hytale-network-dev:
+    driver: bridge
+
+volumes:
+  oauth-shared-dev:
+    driver: local
