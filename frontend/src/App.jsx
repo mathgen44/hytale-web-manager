@@ -101,6 +101,8 @@ function App() {
   const [searchQuery, setSearchQuery] = useState('');
   const [updating, setUpdating] = useState(false);
   const [oauthUrl, setOauthUrl] = useState(null);
+  const [updateAvailable, setUpdateAvailable] = useState(false);
+  const [availableVersion, setAvailableVersion] = useState(null);
   
   // 🆕 États pour la gestion des mods
   const [mods, setMods] = useState([]);
@@ -456,6 +458,31 @@ function App() {
     }
   }, [serverStatus.server]);
 
+  // 🆕 Vérification périodique des mises à jour disponibles
+  useEffect(() => {
+    const checkUpdates = async () => {
+      if (serverStatus.server === 'running' && !updating) {
+        try {
+          const res = await fetch(`${API_URL}/api/server/version-check`);
+          const data = await res.json();
+          setUpdateAvailable(data.updateAvailable || false);
+          setAvailableVersion(data.availableVersion || null);
+          
+          if (data.updateAvailable) {
+            console.log('✨ Nouvelle version disponible:', data.availableVersion);
+          }
+        } catch (error) {
+          console.error('Erreur vérification MAJ:', error);
+        }
+      }
+    };
+
+    checkUpdates();
+    // Vérifier toutes les 30 minutes
+    const interval = setInterval(checkUpdates, 1800000);
+    return () => clearInterval(interval);
+  }, [serverStatus.server, updating]);
+
   // 🆕 Récupération initiale des mods
   useEffect(() => {
     fetchMods();
@@ -640,7 +667,7 @@ function App() {
                 icon={Play}
                 label="Démarrer"
                 onClick={() => handleServerAction('start')}
-                disabled={serverStatus.server === 'running'}
+                disabled={serverStatus.server === 'running' || updating}
                 loading={loading.start}
                 variant="success"
               />
@@ -649,7 +676,7 @@ function App() {
                 icon={Square}
                 label="Arrêter"
                 onClick={() => handleServerAction('stop')}
-                disabled={serverStatus.server === 'stopped'}
+                disabled={serverStatus.server === 'stopped' || updating}
                 loading={loading.stop}
                 variant="danger"
               />
@@ -658,19 +685,32 @@ function App() {
                 icon={RotateCw}
                 label="Redémarrer"
                 onClick={() => handleServerAction('restart')}
-                disabled={serverStatus.server === 'stopped'}
+                disabled={serverStatus.server === 'stopped' || updating}
                 loading={loading.restart}
                 variant="primary"
               />
 
               {/* 🆕 NOUVEAU : Bouton Mettre à jour */}
-              <ActionButton
-                icon={Download}
-                label="Mettre à jour"
-                onClick={handleUpdate}
-                disabled={serverStatus.server === 'stopped' || updating}
-                loading={updating}
-                variant="purple"
+              <div className="relative">
+                <ActionButton
+                  icon={Download}
+                  label={updateAvailable ? "Mettre à jour" : "À jour"}
+                  onClick={handleUpdate}
+                  disabled={serverStatus.server === 'stopped' || updating || !updateAvailable}
+                  loading={updating}
+                  variant={updateAvailable ? "purple" : "secondary"}
+                />
+                {updateAvailable && !updating && (
+                  <div className="absolute -top-2 -right-2 bg-gradient-to-r from-purple-500 to-pink-500 text-white text-xs px-2 py-1 rounded-full animate-pulse shadow-lg">
+                    Nouveau !
+                  </div>
+                )}
+                {updateAvailable && availableVersion && (
+                  <div className="absolute -bottom-8 left-0 right-0 text-xs text-center text-purple-400 font-medium whitespace-nowrap">
+                    v{availableVersion}
+                  </div>
+                )}
+              </div>
               />
             </div>
           </div>
