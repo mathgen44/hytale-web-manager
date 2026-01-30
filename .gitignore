@@ -1,5 +1,6 @@
 # Données du serveur Hytale (ne JAMAIS commit)
 data/
+data-dev/
 backup-hytale-data/
 
 # Fichiers de configuration avec données sensibles
@@ -43,5 +44,6 @@ temp/
 
 # Backups (ne pas commiter les backups)
 backups/
+backups-dev/
 *.tar.gz
 backup-*/

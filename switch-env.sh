@@ -64,15 +64,27 @@ case "$ENV" in
             exit 1
         fi
         
-        # Redémarrer les services
-        log_info "Redémarrage des services..."
-        docker compose down
-        docker compose build --no-cache
-        docker compose up -d
+        # Créer le dossier data-dev s'il n'existe pas
+        if [ ! -d "data-dev" ]; then
+            log_info "Création du dossier data-dev..."
+            mkdir -p data-dev
+            log_warn "⚠️  Dossier data-dev vide, première utilisation"
+            log_info "Le serveur téléchargera les fichiers nécessaires au premier démarrage"
+        fi
+        
+        # Redémarrer les services avec docker-compose.dev.yml
+        log_info "Redémarrage des services DEV..."
+        docker compose -f docker-compose.dev.yml down
+        docker compose -f docker-compose.dev.yml build --no-cache
+        docker compose -f docker-compose.dev.yml up -d
         
         log_success "✅ Environnement DEV activé"
-        log_info "Interface web: http://localhost:3000"
-        log_info "API: http://localhost:4000"
+        log_info "Interface web DEV: http://localhost:3001"
+        log_info "API DEV: http://localhost:4001"
+        log_info "Serveur Hytale DEV: localhost:5521/UDP"
+        log_info ""
+        log_info "📊 Statut des services DEV:"
+        docker compose -f docker-compose.dev.yml ps
         ;;
         
     prod)
@@ -117,8 +129,12 @@ case "$ENV" in
         docker compose up -d
         
         log_success "✅ Environnement PRODUCTION activé"
-        log_info "Interface web: http://localhost:3000"
-        log_info "API: http://localhost:4000"
+        log_info "Interface web PROD: http://localhost:3000"
+        log_info "API PROD: http://localhost:4000"
+        log_info "Serveur Hytale PROD: localhost:5520/UDP"
+        log_info ""
+        log_info "📊 Statut des services PROD:"
+        docker compose ps
         ;;
         
     *)
@@ -128,14 +144,16 @@ case "$ENV" in
         ;;
 esac
 
-# Afficher le statut
-log_info "📊 Statut des services:"
-docker compose ps
-
 log_info ""
 log_info "Commandes utiles:"
-log_info "  make logs          # Voir les logs"
-log_info "  make health        # Vérifier la santé"
-log_info "  make status        # Statut des conteneurs"
+if [ "$ENV" = "dev" ]; then
+    log_info "  docker compose -f docker-compose.dev.yml logs -f    # Voir les logs DEV"
+    log_info "  docker compose -f docker-compose.dev.yml ps          # Statut DEV"
+    log_info "  docker compose -f docker-compose.dev.yml down        # Arrêter DEV"
+else
+    log_info "  make logs          # Voir les logs PROD"
+    log_info "  make health        # Vérifier la santé PROD"
+    log_info "  make status        # Statut PROD"
+fi
 
 exit 0
