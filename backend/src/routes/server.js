@@ -71,6 +71,7 @@ router.get('/version-check', async (req, res) => {
     }
 
     // Vérifier si hytale-downloader existe
+    console.log('🔍 [version-check] Vérification si hytale-downloader existe...');
     const checkExec = await container.exec({
       Cmd: ['sh', '-c', 'test -f /usr/local/bin/hytale-downloader && echo "exists" || echo "missing"'],
       AttachStdout: true,
@@ -86,6 +87,8 @@ router.get('/version-check', async (req, res) => {
     });
 
     await new Promise((resolve) => checkStream.on('end', resolve));
+    
+    console.log('🔍 [version-check] Résultat test existence:', checkOutput.trim());
     
     let availableVersion = 'unknown';
     
