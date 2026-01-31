@@ -232,7 +232,7 @@ async getServerStatus() {
     return result;
   }
   
-  async updateServer() {
+async updateServer() {
   console.log('🔄 Lancement de la mise à jour en arrière-plan...');
   
   try {
@@ -268,7 +268,6 @@ async getServerStatus() {
     throw error;
   }
 }
-
   async streamLogs(callback) {
     try {
       const container = await this.getContainer();

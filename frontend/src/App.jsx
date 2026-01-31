@@ -99,6 +99,10 @@ function App() {
   const [darkMode, setDarkMode] = useState(true);
   const [autoScroll, setAutoScroll] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
+  const [updating, setUpdating] = useState(false);
+  const [oauthUrl, setOauthUrl] = useState(null);
+  const [updateAvailable, setUpdateAvailable] = useState(false);
+  const [availableVersion, setAvailableVersion] = useState(null);
   
   // 🆕 États pour la gestion des mods
   const [mods, setMods] = useState([]);
@@ -220,101 +224,139 @@ function App() {
     }
   };
 
-  // 🆕 Handler pour rafraîchir les mods
+  // 🆕 Handler pour rafraîchir la liste des mods
   const handleRefreshMods = async () => {
     setModsLoading(true);
+    await fetchMods();
+    setTimeout(() => setModsLoading(false), 500);
+  };
+
+  // 🆕 NOUVEAU : Handler pour la mise à jour
+  const handleUpdate = async () => {
+    setUpdating(true);
+    setOauthUrl(null);
+    
     try {
-      const res = await fetch(`${API_URL}/api/mods/scan`, {
-        method: 'POST'
-      });
-
+      const res = await fetch(`${API_URL}/api/server/update`, { method: 'POST' });
       const data = await res.json();
+      
       if (!res.ok) throw new Error(data.error);
-
-      showToast(data.message, 'success');
-      setMods(data.mods || []);
+      
+      showToast('Mise à jour lancée', 'success');
+      
+      // Timeout de 3 minutes puis arrêter le polling
+      setTimeout(() => {
+        setUpdating(false);
+        setOauthUrl(null);
+        showToast('Vérifiez les logs pour le statut', 'info');
+      }, 180000);
+      
     } catch (error) {
       showToast(`Erreur: ${error.message}`, 'error');
-    } finally {
-      setModsLoading(false);
+      setUpdating(false);
+      setOauthUrl(null);
     }
   };
 
-  // 🆕 Composant ModCard
+  // 🆕 Composant ModCard (doit être déclaré avant le return)
   const ModCard = ({ mod }) => (
-    <div className="bg-slate-700 p-5 rounded-lg hover:bg-slate-650 transition-all duration-200 group">
-      <div className="flex items-start justify-between mb-3">
-        <div className="flex items-center gap-3 flex-1">
-          <div className={`p-3 rounded-lg ${mod.enabled ? 'bg-green-500' : 'bg-slate-600'} bg-opacity-20`}>
+    <div className="bg-slate-700 p-4 rounded-lg hover:bg-slate-600 transition-all duration-200 group">
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center gap-3">
+          <div className={`w-10 h-10 rounded-lg ${mod.enabled ? 'bg-green-500' : 'bg-slate-600'} bg-opacity-20 flex items-center justify-center`}>
             <Package className={`w-6 h-6 ${mod.enabled ? 'text-green-400' : 'text-slate-400'}`} />
           </div>
-          <div className="flex-1">
-            <div className="flex items-center gap-2 mb-1">
-              <h3 className="font-bold text-white text-lg">{mod.displayName}</h3>
-              {mod.enabled ? (
-                <span className="px-2 py-0.5 bg-green-500 bg-opacity-20 text-green-400 text-xs rounded-full">
-                  Actif
-                </span>
-              ) : (
-                <span className="px-2 py-0.5 bg-slate-600 text-slate-400 text-xs rounded-full">
-                  Inactif
-                </span>
-              )}
-            </div>
-            <div className="flex items-center gap-4 text-xs text-slate-400">
-              <span>📦 {mod.sizeFormatted}</span>
-              <span>📅 {new Date(mod.lastModified).toLocaleDateString('fr-FR')}</span>
-              <span className="px-2 py-0.5 bg-purple-500 bg-opacity-20 text-purple-400 rounded">
-                {mod.type}
-              </span>
-            </div>
+          <div>
+            <p className="font-semibold text-white text-lg">{mod.filename}</p>
+            <p className="text-xs text-slate-400">
+              {(mod.size / 1024).toFixed(2)} KB • {new Date(mod.modified).toLocaleDateString('fr-FR')}
+            </p>
           </div>
         </div>
+        <div className={`px-3 py-1 rounded-full text-xs font-medium ${
+          mod.enabled 
+            ? 'bg-green-500 bg-opacity-20 text-green-400' 
+            : 'bg-slate-600 bg-opacity-50 text-slate-400'
+        }`}>
+          {mod.enabled ? 'Activé' : 'Désactivé'}
+        </div>
       </div>
-
-      <div className="flex gap-2 mt-3">
+      
+      <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
         <button
           onClick={() => handleToggleMod(mod.filename, mod.enabled)}
-          className={`flex-1 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
+          className={`flex-1 px-3 py-1.5 ${
             mod.enabled 
-              ? 'bg-yellow-600 hover:bg-yellow-700 text-white' 
-              : 'bg-green-600 hover:bg-green-700 text-white'
-          }`}
-          title={mod.enabled ? "Désactiver" : "Activer"}
+              ? 'bg-yellow-600 hover:bg-yellow-700' 
+              : 'bg-green-600 hover:bg-green-700'
+          } text-white text-xs rounded-lg transition-colors duration-200 flex items-center justify-center gap-1`}
         >
           {mod.enabled ? (
             <>
-              <PowerOff className="w-4 h-4 inline mr-1" />
+              <PowerOff className="w-3 h-3" />
               Désactiver
             </>
           ) : (
             <>
-              <Power className="w-4 h-4 inline mr-1" />
+              <Power className="w-3 h-3" />
               Activer
             </>
           )}
         </button>
-
         <button
           onClick={() => handleDeleteMod(mod.filename)}
-          className="px-3 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-sm font-medium transition-all duration-200"
-          title="Supprimer"
+          className="px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white text-xs rounded-lg transition-colors duration-200 flex items-center gap-1"
         >
-          <Trash2 className="w-4 h-4" />
+          <Trash2 className="w-3 h-3" />
+          Supprimer
         </button>
-
-        <a
-          href={`https://www.curseforge.com/hytale/search?page=1&pageSize=20&sortBy=relevancy&search=${encodeURIComponent(mod.displayName)}`}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition-all duration-200"
-          title="Voir sur CurseForge"
-        >
-          <ExternalLink className="w-4 h-4" />
-        </a>
       </div>
     </div>
   );
+
+  // 🆕 NOUVEAU : Composant OAuthPopup
+  const OAuthPopup = () => {
+    if (!oauthUrl) return null;
+    
+    return (
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div className="bg-slate-800 p-8 rounded-xl border border-slate-700 max-w-md w-full mx-4">
+          <div className="flex items-center gap-3 mb-4">
+            <AlertCircle className="w-8 h-8 text-yellow-400" />
+            <h3 className="text-xl font-bold text-white">Authentification Requise</h3>
+          </div>
+          
+          <p className="text-slate-300 mb-6">
+            Le téléchargement nécessite une authentification OAuth. 
+            Veuillez cliquer sur le lien ci-dessous pour autoriser le téléchargement.
+          </p>
+          
+          <a
+            href={oauthUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="block w-full px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-center font-medium transition-colors duration-200"
+          >
+            🔗 Ouvrir la page d'authentification
+          </a>
+          
+          <p className="text-slate-400 text-sm mt-4 text-center">
+            La mise à jour continuera automatiquement après l'authentification
+          </p>
+          
+          <button
+            onClick={() => {
+              setOauthUrl(null);
+              setUpdating(false);
+            }}
+            className="mt-4 w-full px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg transition-colors duration-200"
+          >
+            Annuler
+          </button>
+        </div>
+      </div>
+    );
+  };
 
   // WebSocket pour les logs
   useEffect(() => {
@@ -416,12 +458,55 @@ function App() {
     }
   }, [serverStatus.server]);
 
-  // 🆕 Charger les mods au démarrage
+  // 🆕 Vérification périodique des mises à jour disponibles
+  useEffect(() => {
+    const checkUpdates = async () => {
+      if (serverStatus.server === 'running' && !updating) {
+        try {
+          const res = await fetch(`${API_URL}/api/server/version-check`);
+          const data = await res.json();
+          setUpdateAvailable(data.updateAvailable || false);
+          setAvailableVersion(data.availableVersion || null);
+          
+          if (data.updateAvailable) {
+            console.log('✨ Nouvelle version disponible:', data.availableVersion);
+          }
+        } catch (error) {
+          console.error('Erreur vérification MAJ:', error);
+        }
+      }
+    };
+
+    checkUpdates();
+    // Vérifier toutes les 30 minutes
+    const interval = setInterval(checkUpdates, 1800000);
+    return () => clearInterval(interval);
+  }, [serverStatus.server, updating]);
+
+  // 🆕 Récupération initiale des mods
   useEffect(() => {
     fetchMods();
-    const interval = setInterval(fetchMods, 30000); // Refresh toutes les 30s
-    return () => clearInterval(interval);
   }, []);
+
+  // 🆕 NOUVEAU : Surveillance de l'URL OAuth pendant la mise à jour
+  useEffect(() => {
+    if (updating) {
+      const pollOAuth = setInterval(async () => {
+        try {
+          const res = await fetch(`${API_URL}/api/server/oauth-url`);
+          const data = await res.json();
+          if (data.active && data.url) {
+            setOauthUrl(data.url);
+            showToast('Authentification OAuth requise', 'warning');
+          }
+        } catch (error) {
+          console.error('Erreur polling OAuth:', error);
+        }
+      }, 3000);
+
+      return () => clearInterval(pollOAuth);
+    }
+  }, [updating]);
 
   const handleServerAction = async (action) => {
     setLoading({ ...loading, [action]: true });
@@ -529,6 +614,9 @@ function App() {
         />
       )}
 
+      {/* 🆕 NOUVEAU : Popup OAuth */}
+      {oauthUrl && <OAuthPopup />}
+
       <div className="container mx-auto px-4 py-8 max-w-7xl">
         {/* Header */}
         <header className="mb-8 flex items-center justify-between flex-wrap gap-4">
@@ -579,7 +667,7 @@ function App() {
                 icon={Play}
                 label="Démarrer"
                 onClick={() => handleServerAction('start')}
-                disabled={serverStatus.server === 'running'}
+                disabled={serverStatus.server === 'running' || updating}
                 loading={loading.start}
                 variant="success"
               />
@@ -588,7 +676,7 @@ function App() {
                 icon={Square}
                 label="Arrêter"
                 onClick={() => handleServerAction('stop')}
-                disabled={serverStatus.server === 'stopped'}
+                disabled={serverStatus.server === 'stopped' || updating}
                 loading={loading.stop}
                 variant="danger"
               />
@@ -597,9 +685,32 @@ function App() {
                 icon={RotateCw}
                 label="Redémarrer"
                 onClick={() => handleServerAction('restart')}
-                disabled={serverStatus.server === 'stopped'}
+                disabled={serverStatus.server === 'stopped' || updating}
                 loading={loading.restart}
                 variant="primary"
+              />
+
+              {/* 🆕 NOUVEAU : Bouton Mettre à jour */}
+              <div className="relative">
+                <ActionButton
+                  icon={Download}
+                  label={updateAvailable ? "Mettre à jour" : "À jour"}
+                  onClick={handleUpdate}
+                  disabled={serverStatus.server === 'stopped' || updating || !updateAvailable}
+                  loading={updating}
+                  variant={updateAvailable ? "purple" : "secondary"}
+                />
+                {updateAvailable && !updating && (
+                  <div className="absolute -top-2 -right-2 bg-gradient-to-r from-purple-500 to-pink-500 text-white text-xs px-2 py-1 rounded-full animate-pulse shadow-lg">
+                    Nouveau !
+                  </div>
+                )}
+                {updateAvailable && availableVersion && (
+                  <div className="absolute -bottom-8 left-0 right-0 text-xs text-center text-purple-400 font-medium whitespace-nowrap">
+                    v{availableVersion}
+                  </div>
+                )}
+              </div>
               />
             </div>
           </div>
@@ -632,7 +743,7 @@ function App() {
           )}
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Joueurs */}
           <div className="bg-slate-800 p-6 rounded-xl border border-slate-700 shadow-xl">
             <div className="flex items-center justify-between mb-6">
@@ -791,7 +902,7 @@ function App() {
         </div>
 
         {/* 🆕 Section Gestionnaire de Mods */}
-        <div className="bg-slate-800 p-6 rounded-xl border border-slate-700 shadow-xl mb-6">
+        <div className="bg-slate-800 p-6 rounded-xl border border-slate-700 shadow-xl mb-6 mt-6">
           <div className="flex items-center justify-between mb-6">
             <div className="flex items-center gap-3">
               <div className="p-3 rounded-lg bg-purple-500 bg-opacity-20">

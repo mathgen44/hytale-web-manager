@@ -6,7 +6,7 @@ import dotenv from 'dotenv';
 import serverRoutes from './routes/server.js';
 import playersRoutes from './routes/players.js';
 import commandsRoutes from './routes/commands.js';
-import modsRoutes from './routes/mods.js';
+//import modsRoutes from './routes/mods.js';
 import { setupLogsWebSocket } from './websocket/logs-stream.js';
 
 dotenv.config();
@@ -22,7 +22,7 @@ app.use(express.json());
 app.use('/api/server', serverRoutes);
 app.use('/api/players', playersRoutes);
 app.use('/api/commands', commandsRoutes);
-app.use('/api/mods', modsRoutes);
+//app.use('/api/mods', modsRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {
