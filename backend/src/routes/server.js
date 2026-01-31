@@ -70,33 +70,58 @@ router.get('/version-check', async (req, res) => {
       });
     }
 
-    // Exécuter hytale-downloader -print-version pour obtenir la version disponible
-    const exec = await container.exec({
-      Cmd: ['sh', '-c', '/usr/local/bin/hytale-downloader -print-version 2>&1 || echo "error"'],
+    // Vérifier si hytale-downloader existe
+    const checkExec = await container.exec({
+      Cmd: ['sh', '-c', 'test -f /usr/local/bin/hytale-downloader && echo "exists" || echo "missing"'],
       AttachStdout: true,
       AttachStderr: true
     });
 
-    const stream = await exec.start();
-    let output = '';
+    const checkStream = await checkExec.start();
+    let checkOutput = '';
     
-    stream.on('data', (chunk) => {
+    checkStream.on('data', (chunk) => {
       const text = chunk.toString('utf8');
-      // Nettoyer les headers Docker (8 premiers octets)
-      output += text.length > 8 ? text.substring(8) : text;
+      checkOutput += text.length > 8 ? text.substring(8) : text;
     });
 
-    await new Promise((resolve, reject) => {
-      stream.on('end', resolve);
-      stream.on('error', reject);
-      // Timeout 30 secondes
-      setTimeout(() => reject(new Error('Timeout')), 30000);
-    });
+    await new Promise((resolve) => checkStream.on('end', resolve));
     
-    // Parser la sortie pour extraire la version
-    // Format attendu : "2026.01.28-87d03be09"
-    const versionLineMatch = output.match(/([\d]{4}\.[\d]{2}\.[\d]{2}-[a-f0-9]+)/i);
-    const availableVersion = versionLineMatch ? versionLineMatch[1] : 'unknown';
+    let availableVersion = 'unknown';
+    
+    if (checkOutput.trim() === 'exists') {
+      // hytale-downloader existe, on peut vérifier la version
+      const exec = await container.exec({
+        Cmd: ['sh', '-c', '/usr/local/bin/hytale-downloader -print-version 2>&1 || echo "error"'],
+        AttachStdout: true,
+        AttachStderr: true
+      });
+
+      const stream = await exec.start();
+      let output = '';
+      
+      stream.on('data', (chunk) => {
+        const text = chunk.toString('utf8');
+        // Nettoyer les headers Docker (8 premiers octets)
+        output += text.length > 8 ? text.substring(8) : text;
+      });
+
+      await new Promise((resolve, reject) => {
+        stream.on('end', resolve);
+        stream.on('error', reject);
+        // Timeout 30 secondes
+        setTimeout(() => reject(new Error('Timeout')), 30000);
+      });
+      
+      // Parser la sortie pour extraire la version
+      // Format attendu : "2026.01.28-87d03be09"
+      const versionLineMatch = output.match(/([\d]{4}\.[\d]{2}\.[\d]{2}-[a-f0-9]+)/i);
+      availableVersion = versionLineMatch ? versionLineMatch[1] : 'unknown';
+    } else {
+      // hytale-downloader n'est pas encore installé
+      console.log('ℹ️  [version-check] hytale-downloader pas encore installé (s\'installera à la première MAJ)');
+      availableVersion = 'not-installed';
+    }
     
     // Récupérer version actuelle depuis les logs
     const logs = await dockerService.getLogs(2000);
@@ -104,19 +129,33 @@ router.get('/version-check', async (req, res) => {
     const currentVersion = currentVersionMatch ? currentVersionMatch[1] : 'unknown';
     
     // Comparer versions (simple comparaison de strings)
-    const updateAvailable = availableVersion !== 'unknown' && 
-                           currentVersion !== 'unknown' && 
-                           availableVersion !== currentVersion;
+    let updateAvailable = false;
+    let message = '';
+    
+    if (availableVersion === 'not-installed') {
+      updateAvailable = true; // On active le bouton pour permettre la première MAJ
+      message = 'Cliquez pour installer hytale-downloader et mettre à jour';
+    } else if (availableVersion !== 'unknown' && currentVersion !== 'unknown' && availableVersion !== currentVersion) {
+      updateAvailable = true;
+      message = 'Nouvelle version disponible';
+    } else if (availableVersion === currentVersion) {
+      updateAvailable = false;
+      message = 'Serveur à jour';
+    } else {
+      updateAvailable = false;
+      message = 'Impossible de vérifier la version disponible';
+    }
     
     console.log('🔍 [version-check] Version actuelle:', currentVersion);
     console.log('🔍 [version-check] Version disponible:', availableVersion);
     console.log('🔍 [version-check] Mise à jour disponible:', updateAvailable);
+    console.log('🔍 [version-check] Message:', message);
     
     res.json({ 
       updateAvailable, 
       currentVersion,
-      availableVersion,
-      message: updateAvailable ? 'Nouvelle version disponible' : 'Serveur à jour'
+      availableVersion: availableVersion === 'not-installed' ? 'à installer' : availableVersion,
+      message
     });
   } catch (error) {
     console.error('❌ [version-check] Erreur:', error.message);
